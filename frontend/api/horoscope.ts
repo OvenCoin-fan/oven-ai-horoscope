@@ -1,5 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 const ZODIAC: Record<string,string> = {
   aries:'Овен', taurus:'Телец', gemini:'Близнецы', cancer:'Рак',
   leo:'Лев', virgo:'Дева', libra:'Весы', scorpio:'Скорпион',
@@ -21,22 +19,10 @@ const FB: Record<string,string> = {
   pisces:'♓ Рыбы: Интуиция на пике. Творчество — твой путь.',
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { sign } = req.body;
   const name = ZODIAC[sign];
   if (!name) return res.status(400).json({ error: 'Invalid sign' });
-
-  const KEY = process.env.MIRA_API_KEY;
-  if (KEY) {
-    try {
-      const r = await fetch('https://api.mira.tg/v1/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${KEY}` },
-        body: JSON.stringify({ message: `Напиши короткий гороскоп на сегодня для ${name}. Мистический стиль, 2-3 предложения.`, user_id: 'oven-app' }),
-      });
-      if (r.ok) { const d = await r.json(); return res.status(200).json({ horoscope: d.response || d.message || FB[sign] }); }
-    } catch (e) { console.error('Mira error:', e); }
-  }
   return res.status(200).json({ horoscope: FB[sign] });
 }
