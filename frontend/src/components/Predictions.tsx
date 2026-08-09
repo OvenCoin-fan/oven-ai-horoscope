@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useWallet } from './WalletContext';
 import '../App.css';
 
 interface Market {
@@ -7,12 +8,10 @@ interface Market {
   title: string;
   outcomes: string[];
   hint: string;
-  // AMM state
-  pool: number[]; // liquidity per outcome
+  pool: number[];
 }
 
-const INITIAL_POOL = 100; // base liquidity per outcome
-const FEE = 0.02; // 2% trade fee
+const FEE = 0.02;
 
 const MARKETS: Market[] = [
   {
@@ -21,7 +20,7 @@ const MARKETS: Market[] = [
     title: 'BTC выше $65,000 в пятницу?',
     outcomes: ['Да', 'Нет'],
     hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит. Рынок нервный.',
-    pool: [130, 70] // Да дороже = 65%
+    pool: [130, 70]
   },
   {
     id: 'ton-top10',
@@ -29,7 +28,7 @@ const MARKETS: Market[] = [
     title: 'TON в топ-10 к сентябрю?',
     outcomes: ['Да', 'Нет'],
     hint: '♈ Юпитер расширяет границы. Но конкуренция жёсткая.',
-    pool: [60, 140] // Да дешевле = 30%
+    pool: [60, 140]
   },
   {
     id: 'elon-tweet',
@@ -37,11 +36,10 @@ const MARKETS: Market[] = [
     title: 'Маск упомянет DOGE/TON до 15 августа?',
     outcomes: ['Да', 'Нет'],
     hint: '♈ Меркурий в ретрограде — неожиданные сообщения.',
-    pool: [100, 100] // 50/50
+    pool: [100, 100]
   }
 ];
 
-// LMSR (Logarithmic Market Scoring Rule) price calculation
 function getPrices(pool: number[]): number[] {
   const total = pool.reduce((a, b) => a + b, 0);
   return pool.map(p => p / total);
@@ -49,19 +47,11 @@ function getPrices(pool: number[]): number[] {
 
 function getCost(pool: number[], outcomeIdx: number, shares: number): number {
   const prices = getPrices(pool);
-  // Simplified: average price * shares + fee
-  const avgPrice = prices[outcomeIdx];
-  const cost = avgPrice * shares * (1 + FEE);
-  return Math.ceil(cost * 100) / 100;
-}
-
-function getPotentialReturn(shares: number): number {
-  // If outcome wins, each share = 1 $OVEN
-  return shares;
+  return prices[outcomeIdx] * shares * (1 + FEE);
 }
 
 export function Predictions() {
-  const [balance, setBalance] = useState(500);
+  const { wallet, connect } = useWallet();
   const [markets, setMarkets] = useState<Market[]>(MARKETS);
   const [positions, setPositions] = useState<Record<string, Record<number, number>>>({});
   const [showHint, setShowHint] = useState<Record<string, boolean>>({});
@@ -69,33 +59,31 @@ export function Predictions() {
   const [tradeMode, setTradeMode] = useState<Record<string, { outcome: number; amount: number }>>({});
 
   const buyShares = useCallback((marketId: string, outcomeIdx: number, shares: number) => {
-    setMarkets(prev => {
-      const mk = prev.find(m => m.id === marketId);
-      if (!mk) return prev;
-      const cost = getCost(mk.pool, outcomeIdx, shares);
-      if (cost > balance) {
-        setError('Недостаточно $OVEN!');
-        return prev;
+    const mk = markets.find(m => m.id === marketId);
+    if (!mk) return;
+    const cost = getCost(mk.pool, outcomeIdx, shares);
+    if (cost > wallet.ovenBalance) {
+      setError('Недостаточно $OVEN на балансе!');
+      return;
+    }
+    setError(null);
+    // Deduct from wallet balance (in production: send jetton transfer)
+    const newPool = [...mk.pool];
+    newPool[outcomeIdx] += shares;
+    setMarkets(prev => prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m));
+    setPositions(p => ({
+      ...p,
+      [marketId]: {
+        ...p[marketId],
+        [outcomeIdx]: (p[marketId]?.[outcomeIdx] || 0) + shares
       }
-      setError(null);
-      setBalance(b => b - cost);
-      setPositions(p => ({
-        ...p,
-        [marketId]: {
-          ...p[marketId],
-          [outcomeIdx]: (p[marketId]?.[outcomeIdx] || 0) + shares
-        }
-      }));
-      const newPool = [...mk.pool];
-      newPool[outcomeIdx] += shares;
-      return prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m);
-    });
-  }, [balance]);
+    }));
+  }, [markets, wallet.ovenBalance]);
 
   const sellShares = useCallback((marketId: string, outcomeIdx: number, shares: number) => {
     const held = positions[marketId]?.[outcomeIdx] || 0;
     if (shares > held) {
-      setError('Недостаточно акций для продажи!');
+      setError('Недостаточно акций!');
       return;
     }
     setError(null);
@@ -103,29 +91,55 @@ export function Predictions() {
     if (!mk) return;
     const prices = getPrices(mk.pool);
     const revenue = prices[outcomeIdx] * shares * (1 - FEE);
-    setBalance(b => b + Math.floor(revenue));
-    setPositions(p => ({
-      ...p,
-      [marketId]: {
-        ...p[marketId],
-        [outcomeIdx]: held - shares
-      }
-    }));
     const newPool = [...mk.pool];
     newPool[outcomeIdx] = Math.max(1, newPool[outcomeIdx] - shares);
     setMarkets(prev => prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m));
+    setPositions(p => ({
+      ...p,
+      [marketId]: { ...p[marketId], [outcomeIdx]: held - shares }
+    }));
   }, [markets, positions]);
 
+  // NO WALLET — show connect prompt
+  if (!wallet.connected) {
+    return (
+      <div className="card">
+        <h2>🎯 OVEN Predictions</h2>
+        <div style={{ textAlign: 'center', padding: '30px 16px' }}>
+          <p style={{ fontSize: '40px', marginBottom: '12px''>👛</p>
+          <p style={{ color: '#e8e8e8', fontSize: '15px', marginBottom: '8px' }}>Подключи TON-кошелёк</p>
+          <p style={{ color: '#888', fontSize: '13px', marginBottom: '16px' }}>Ставки принимаются в $OVEN. Без кошелька — не играешь.</p>
+          <button
+            onClick={connect}
+            style={{
+              padding: '12px 32px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #d4a017, #8b6914)',
+              color: '#fff',
+              fontSize: '15px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            🔗 Подключить кошелёк
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // WALLET CONNECTED — show markets
   return (
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
       <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>
-        Покупай акции исхода. Угадал — каждая акция = 1 $OVEN.
+        Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.
       </p>
 
       <div className="balance-bar">
-        <span className="label">💰 Баланс:</span>
-        <span className="amount">{Math.floor(balance)} $OVEN</span>
+        <span className="label">🔥 $OVEN:</span>
+        <span className="amount">{wallet.ovenBalance} $OVEN</span>
       </div>
 
       {error && (
@@ -145,7 +159,6 @@ export function Predictions() {
               {mk.emoji} {mk.title}
             </p>
 
-            {/* Price bars */}
             <div style={{ marginBottom: '12px' }}>
               {mk.outcomes.map((name, i) => {
                 const pct = Math.round(prices[i] * 100);
@@ -159,15 +172,12 @@ export function Predictions() {
                     <div style={{ height: '8px', background: 'rgba(212,160,23,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #d4a017, #8b6914)', borderRadius: '4px', transition: 'width 0.3s' }} />
                     </div>
-                    {held > 0 && (
-                      <p style={{ fontSize: '11px', color: '#4f4', marginTop: '2px' }}>У вас: {held} акций</p>
-                    )}
+                    {held > 0 && <p style={{ fontSize: '11px', color: '#4f4', marginTop: '2px' }}>У вас: {held} акций</p>}
                   </div>
                 );
               })}
             </div>
 
-            {/* Trade controls */}
             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
               {mk.outcomes.map((name, i) => (
                 <button
@@ -189,12 +199,9 @@ export function Predictions() {
               ))}
             </div>
 
-            {/* Amount + Buy/Sell */}
             {trade !== undefined && trade.outcome !== undefined && (
               <div style={{ padding: '10px', background: 'rgba(212,160,23,0.06)', borderRadius: '8px' }}>
-                <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>
-                  Количество акций «{mk.outcomes[trade.outcome]}»:
-                </p>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>Кол-во акций «{mk.outcomes[trade.outcome]}»:</p>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                   {[5, 10, 25, 50].map(n => (
                     <button
@@ -209,21 +216,16 @@ export function Predictions() {
                         fontSize: '12px',
                         cursor: 'pointer'
                       }}
-                    >
-                      {n}
-                    </button>
+                    >{n}</button>
                   ))}
                 </div>
 
-                {/* Cost & return preview */}
                 <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(212,160,23,0.08)', borderRadius: '6px' }}>
                   <p style={{ fontSize: '12px', color: '#888' }}>
-                    Цена: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span>
-                    {' '}(по {Math.round(prices[trade.outcome] * 100)}¢ + 2% комиссия)
+                    Стоимость: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span> (по {Math.round(prices[trade.outcome] * 100)}¢ + 2%)
                   </p>
                   <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
-                    Если «{mk.outcomes[trade.outcome]}» выиграет: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span>
-                    {' '}
+                    Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span>{' '}
                     <span style={{ color: '#4f4', fontSize: '11px' }}>(+{Math.round(trade.amount - getCost(mk.pool, trade.outcome, trade.amount))})</span>
                   </p>
                 </div>
@@ -243,7 +245,7 @@ export function Predictions() {
                       cursor: 'pointer'
                     }}
                   >
-                    Купить {trade.amount} акций
+                    Купить за {getCost(mk.pool, trade.outcome, trade.amount).toFixed(1)} $OVEN
                   </button>
                   {(myPos[trade.outcome] || 0) > 0 && (
                     <button
@@ -253,20 +255,19 @@ export function Predictions() {
                         padding: '8px',
                         borderRadius: '8px',
                         border: '1px solid rgba(255,50,50,0.4)',
-                      background: 'rgba(255,50,50,0.1)',
-                      color: '#f88',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Продать {Math.min(trade.amount, myPos[trade.outcome] || 0)}
-                  </button>
+                        background: 'rgba(255,50,50,0.1)',
+                        color: '#f88',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Продать {Math.min(trade.amount, myPos[trade.outcome] || 0)}
+                    </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Hint */}
             <button
               onClick={() => setShowHint(prev => ({ ...prev, [mk.id]: !prev[mk.id] }))}
               style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '8px' }}
@@ -274,9 +275,7 @@ export function Predictions() {
               {showHint[mk.id] ? '🔮 Скрыть подсказку' : '🔮 Подсказка гороскопа'}
             </button>
             {showHint[mk.id] && (
-              <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>
-                {mk.hint}
-              </p>
+              <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>{mk.hint}</p>
             )}
           </div>
         );
