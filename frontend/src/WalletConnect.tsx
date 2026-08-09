@@ -1,14 +1,14 @@
 import { useWallet } from './WalletContext';
 import './App.css';
 
-export function MintOven() {
-  const { wallet, connect } = useWallet();
-
-  if (!wallet.connected) {
-    return (
-      <div className="card">
-        <h2>♈ Минт $OVEN</h2>
-        <p style={{ color: '#888', fontSize: '14px', marginBottom: '16px' }}>Подключи кошелёк, чтобы получить $OVEN.</p>
+export function WalletConnect() {
+  const { connect } = useWallet();
+  return (
+    <div className="card">
+      <div style={{ textAlign: 'center', padding: '20px 16px' }}>
+        <p style={{ fontSize: '48px', marginBottom: '12px' }}>👛</p>
+        <h2 style={{ marginBottom: '8px' }}>Подключи кошелёк</h2>
+        <p style={{ color: '#888', fontSize: '14px', marginBottom: '24px' }}>Ставки и минт в $OVEN. Без кошелька — не играешь.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button onClick={() => connect('tonkeeper')} style={{
             padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
@@ -27,28 +27,6 @@ export function MintOven() {
           }}><span style={{ fontSize: '20px' }}>🟣</span> MyTonWallet</button>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="card">
-      <h2>♈ Минт $OVEN</h2>
-      <div style={{ marginBottom: '12px', padding: '12px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px' }}>
-        <p style={{ fontSize: '13px', color: '#888' }}>🔥 Total Supply: 1,000,000,000 $OVEN</p>
-        <p style={{ fontSize: '13px', color: '#888' }}>♈ Держи $OVEN — получай гороскопы</p>
-        <p style={{ fontSize: '13px', color: '#888' }}>💎 Ставь $OVEN на предсказания</p>
-      </div>
-      <div className="balance-bar" style={{ marginBottom: '12px' }}>
-        <span className="label">🔥 $OVEN:</span>
-        <span className="amount">{wallet.ovenBalance}</span>
-      </div>
-      <div className="balance-bar">
-        <span className="label">💎 TON:</span>
-        <span className="amount">{wallet.tonBalance}</span>
-      </div>
-      <button className="mint-btn" style={{ marginTop: '12px' }} onClick={() => alert('В продакшене: jetton transfer через TonConnect')}>
-        🔥 Минт 100 $OVEN
-      </button>
     </div>
   );
 }
