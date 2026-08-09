@@ -1,5 +1,5 @@
 import { useState, createContext, useContext } from 'react';
-import './App.css';
+import '../App.css';
 
 interface WalletState {
   connected: boolean;
@@ -22,8 +22,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>(defaultWallet);
 
   const connect = (type: string) => {
-    // In production: TonConnect UI with real wallet
-    // Demo: simulate wallet connection
     setWallet({
       connected: true,
       address: 'UQBCF...W9aR',

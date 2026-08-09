@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWallet } from './WalletContext';
-import './App.css';
+import '../App.css';
 
 interface Market {
   id: string;
@@ -125,18 +125,15 @@ export function Predictions() {
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
       <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.</p>
-
       <div className="balance-bar">
         <span className="label">🔥 $OVEN:</span>
         <span className="amount">{wallet.ovenBalance}</span>
       </div>
-
       {error && (
         <div style={{ padding: '10px', background: 'rgba(255,50,50,0.1)', borderRadius: '8px', border: '1px solid rgba(255,50,50,0.3)', marginBottom: '12px' }}>
           <p style={{ fontSize: '13px', color: '#f55' }}>⚠️ {error}</p>
         </div>
       )}
-
       {markets.map(mk => {
         const prices = getPrices(mk.pool);
         const myPos = positions[mk.id] || {};

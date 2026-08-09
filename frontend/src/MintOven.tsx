@@ -1,5 +1,5 @@
 import { useWallet } from './WalletContext';
-import './App.css';
+import '../App.css';
 
 export function MintOven() {
   const { wallet, connect } = useWallet();
