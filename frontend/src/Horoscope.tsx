@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import '../App.css';
+import './App.css';
 
 const Z = [
   {s:'aries',e:'♈',n:'Овен'},{s:'taurus',e:'♉',n:'Телец'},

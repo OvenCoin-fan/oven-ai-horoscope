@@ -1,5 +1,5 @@
 import { useState, createContext, useContext } from 'react';
-import '../App.css';
+import './App.css';
 
 interface WalletState {
   connected: boolean;

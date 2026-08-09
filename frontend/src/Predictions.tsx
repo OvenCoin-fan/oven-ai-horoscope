@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWallet } from './WalletContext';
-import '../App.css';
+import './App.css';
 
 interface Market {
   id: string;
@@ -184,7 +184,7 @@ export function Predictions() {
                 </div>
                 <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(212,160,23,0.08)', borderRadius: '6px' }}>
                   <p style={{ fontSize: '12px', color: '#888' }}>Стоимость: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span> (по {Math.round(prices[trade.outcome] * 100)}¢ + 2%)</p>
-                  <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span> <span style={{ color: '#4f4', fontSize: '11px' }}>(+{Math.round(trade.amount - getCost(mk.pool, trade.outcome, trade.amount))})</span></p>
+                  <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span></p>
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={() => buyShares(mk.id, trade.outcome, trade.amount)} style={{

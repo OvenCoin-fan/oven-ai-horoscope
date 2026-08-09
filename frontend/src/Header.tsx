@@ -1,4 +1,4 @@
-import '../App.css';
+import './App.css';
 export function Header() {
   return (
     <header className="card" style={{ textAlign: 'center', marginBottom: '8px' }}>
