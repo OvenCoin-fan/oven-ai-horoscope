@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWallet } from './WalletContext';
-import '../App.css';
+import './App.css';
 
 interface Market {
   id: string;
@@ -82,7 +82,6 @@ export function Predictions() {
     setError(null);
     const mk = markets.find(m => m.id === marketId);
     if (!mk) return;
-    const prices = getPrices(mk.pool);
     const newPool = [...mk.pool];
     newPool[outcomeIdx] = Math.max(1, newPool[outcomeIdx] - shares);
     setMarkets(prev => prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m));
@@ -92,7 +91,6 @@ export function Predictions() {
     }));
   };
 
-  // NO WALLET
   if (!wallet.connected) {
     return (
       <div className="card">
@@ -102,55 +100,31 @@ export function Predictions() {
           <p style={{ color: '#e8e8e8', fontSize: '15px', marginBottom: '8px' }}>Подключи кошелёк</p>
           <p style={{ color: '#888', fontSize: '13px', marginBottom: '20px' }}>Ставки в $OVEN. Без кошелька — не играешь.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button
-              onClick={() => connect('tonkeeper')}
-              style={{
-                padding: '14px 24px',
-                borderRadius: '12px',
-                border: '1px solid rgba(212,160,23,0.3)',
-                background: 'rgba(212,160,23,0.08)',
-                color: '#e8e8e8',
-                fontSize: '15px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px'
-              }}
-            >
-              <span style={{ fontSize: '20px' }}>💎</span> Tonkeeper
-            </button>
-            <button
-              onClick={() => connect('tonwallet')}
-              style={{
-                padding: '14px 24px',
-                borderRadius: '12px',
-                border: '1px solid rgba(212,160,23,0.3)',
-                background: 'rgba(212,160,23,0.08)',
-                color: '#e8e8e8',
-                fontSize: '15px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px'
-              }}
-            >
-              <span style={{ fontSize: '20px' }}>🔵</span> TON Wallet
-            </button>
+            <button onClick={() => connect('tonkeeper')} style={{
+              padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+              background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+            }}><span style={{ fontSize: '20px' }}>💎</span> Tonkeeper</button>
+            <button onClick={() => connect('tonwallet')} style={{
+              padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+              background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+            }}><span style={{ fontSize: '20px' }}>🔵</span> TON Wallet</button>
+            <button onClick={() => connect('mytonwallet')} style={{
+              padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+              background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+            }}><span style={{ fontSize: '20px' }}>🟣</span> MyTonWallet</button>
           </div>
         </div>
       </div>
     );
   }
 
-  // WALLET CONNECTED
   return (
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
-      <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>
-        Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.
-      </p>
+      <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.</p>
 
       <div className="balance-bar">
         <span className="label">🔥 $OVEN:</span>
@@ -167,11 +141,9 @@ export function Predictions() {
         const prices = getPrices(mk.pool);
         const myPos = positions[mk.id] || {};
         const trade = tradeMode[mk.id];
-
         return (
           <div key={mk.id} style={{ marginBottom: '20px', padding: '16px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.12)' }}>
             <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#e8e8e8' }}>{mk.emoji} {mk.title}</p>
-
             <div style={{ marginBottom: '12px' }}>
               {mk.outcomes.map((name, i) => {
                 const pct = Math.round(prices[i] * 100);
@@ -190,7 +162,6 @@ export function Predictions() {
                 );
               })}
             </div>
-
             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
               {mk.outcomes.map((name, i) => (
                 <button key={i} onClick={() => setTradeMode(prev => ({ ...prev, [mk.id]: { outcome: i, amount: prev[mk.id]?.amount || 10 } }))} style={{
@@ -201,7 +172,6 @@ export function Predictions() {
                 }}>Купить «{name}»</button>
               ))}
             </div>
-
             {trade !== undefined && trade.outcome !== undefined && (
               <div style={{ padding: '10px', background: 'rgba(212,160,23,0.06)', borderRadius: '8px' }}>
                 <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>Кол-во акций «{mk.outcomes[trade.outcome]}»:</p>
@@ -215,12 +185,10 @@ export function Predictions() {
                     }}>{n}</button>
                   ))}
                 </div>
-
                 <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(212,160,23,0.08)', borderRadius: '6px' }}>
                   <p style={{ fontSize: '12px', color: '#888' }}>Стоимость: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span> (по {Math.round(prices[trade.outcome] * 100)}¢ + 2%)</p>
                   <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span> <span style={{ color: '#4f4', fontSize: '11px' }}>(+{Math.round(trade.amount - getCost(mk.pool, trade.outcome, trade.amount))})</span></p>
                 </div>
-
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={() => buyShares(mk.id, trade.outcome, trade.amount)} style={{
                     flex: 1, padding: '8px', borderRadius: '8px', border: 'none',
@@ -235,7 +203,6 @@ export function Predictions() {
                 </div>
               </div>
             )}
-
             <button onClick={() => setShowHint(prev => ({ ...prev, [mk.id]: !prev[mk.id] }))} style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '8px' }}>
               {showHint[mk.id] ? '🔮 Скрыть подсказку' : '🔮 Подсказка гороскопа'}
             </button>

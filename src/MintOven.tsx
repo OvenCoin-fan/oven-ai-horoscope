@@ -1,5 +1,5 @@
 import { useWallet } from './WalletContext';
-import '../App.css';
+import './App.css';
 
 export function MintOven() {
   const { wallet, connect } = useWallet();
@@ -20,6 +20,11 @@ export function MintOven() {
             background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
           }}><span style={{ fontSize: '20px' }}>🔵</span> TON Wallet</button>
+          <button onClick={() => connect('mytonwallet')} style={{
+            padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+            background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+          }}><span style={{ fontSize: '20px' }}>🟣</span> MyTonWallet</button>
         </div>
       </div>
     );

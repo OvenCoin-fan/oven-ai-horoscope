@@ -35,17 +35,12 @@ function getPrices(pool: number[]): number[] {
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
-    const marketsWithPrices = MARKETS.map(m => ({
-      ...m,
-      prices: getPrices(m.pool)
-    }));
+    const marketsWithPrices = MARKETS.map(m => ({ ...m, prices: getPrices(m.pool) }));
     return res.status(200).json({ markets: marketsWithPrices, fee: 0.02 });
   }
   if (req.method === 'POST') {
     const { marketId, outcome, shares, wallet, action } = req.body;
-    if (!marketId || outcome === undefined || !shares) {
-      return res.status(400).json({ error: 'Missing fields' });
-    }
+    if (!marketId || outcome === undefined || !shares) return res.status(400).json({ error: 'Missing fields' });
     const mk = MARKETS.find(m => m.id === marketId);
     if (!mk) return res.status(404).json({ error: 'Market not found' });
     const prices = getPrices(mk.pool);
@@ -53,30 +48,11 @@ export default async function handler(req: any, res: any) {
     const fee = 0.02;
     if (action === 'buy') {
       const cost = price * shares * (1 + fee);
-      return res.status(200).json({
-        success: true,
-        action: 'buy',
-        marketId,
-        outcome,
-        shares,
-        pricePerShare: Math.round(price * 100) / 100,
-        totalCost: Math.round(cost * 100) / 100,
-        potentialWin: shares,
-        fee: `${fee * 100}%`
-      });
+      return res.status(200).json({ success: true, action: 'buy', marketId, outcome, shares, pricePerShare: Math.round(price * 100) / 100, totalCost: Math.round(cost * 100) / 100, potentialWin: shares, fee: `${fee * 100}%` });
     }
     if (action === 'sell') {
       const revenue = price * shares * (1 - fee);
-      return res.status(200).json({
-        success: true,
-        action: 'sell',
-        marketId,
-        outcome,
-        shares,
-        pricePerShare: Math.round(price * 100) / 100,
-        totalRevenue: Math.round(revenue * 100) / 100,
-        fee: `${fee * 100}%`
-      });
+      return res.status(200).json({ success: true, action: 'sell', marketId, outcome, shares, pricePerShare: Math.round(price * 100) / 100, totalRevenue: Math.round(revenue * 100) / 100, fee: `${fee * 100}%` });
     }
     return res.status(400).json({ error: 'Invalid action' });
   }

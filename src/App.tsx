@@ -3,7 +3,7 @@ import { Header } from './Header';
 import { Horoscope } from './Horoscope';
 import { Predictions } from './Predictions';
 import { MintOven } from './MintOven';
-import '../App.css';
+import './App.css';
 
 function App() {
   return (
