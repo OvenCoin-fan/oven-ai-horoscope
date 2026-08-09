@@ -1,0 +1,19 @@
+{
+  "projects": [
+    {
+      "name": "OvenJetton",
+      "path": "./contracts/oven_jetton.tact",
+      "output": "./build/oven_jetton"
+    },
+    {
+      "name": "PredictionMarket",
+      "path": "./contracts/prediction_market.tact",
+      "output": "./build/prediction_market"
+    },
+    {
+      "name": "MarketFactory",
+      "path": "./contracts/market_factory.tact",
+      "output": "./build/market_factory"
+    }
+  ]
+}
