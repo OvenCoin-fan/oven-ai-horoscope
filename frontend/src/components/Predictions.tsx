@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useWallet } from './WalletContext';
 import '../App.css';
 
@@ -45,9 +45,9 @@ function getPrices(pool: number[]): number[] {
   return pool.map(p => p / total);
 }
 
-function getCost(pool: number[], outcomeIdx: number, shares: number): number {
+function getCost(pool: number[], idx: number, shares: number): number {
   const prices = getPrices(pool);
-  return prices[outcomeIdx] * shares * (1 + FEE);
+  return prices[idx] * shares * (1 + FEE);
 }
 
 export function Predictions() {
@@ -58,39 +58,31 @@ export function Predictions() {
   const [error, setError] = useState<string | null>(null);
   const [tradeMode, setTradeMode] = useState<Record<string, { outcome: number; amount: number }>>({});
 
-  const buyShares = useCallback((marketId: string, outcomeIdx: number, shares: number) => {
+  const buyShares = (marketId: string, outcomeIdx: number, shares: number) => {
     const mk = markets.find(m => m.id === marketId);
     if (!mk) return;
     const cost = getCost(mk.pool, outcomeIdx, shares);
     if (cost > wallet.ovenBalance) {
-      setError('Недостаточно $OVEN на балансе!');
+      setError('Недостаточно $OVEN! Купи или заминти токены.');
       return;
     }
     setError(null);
-    // Deduct from wallet balance (in production: send jetton transfer)
     const newPool = [...mk.pool];
     newPool[outcomeIdx] += shares;
     setMarkets(prev => prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m));
     setPositions(p => ({
       ...p,
-      [marketId]: {
-        ...p[marketId],
-        [outcomeIdx]: (p[marketId]?.[outcomeIdx] || 0) + shares
-      }
+      [marketId]: { ...p[marketId], [outcomeIdx]: (p[marketId]?.[outcomeIdx] || 0) + shares }
     }));
-  }, [markets, wallet.ovenBalance]);
+  };
 
-  const sellShares = useCallback((marketId: string, outcomeIdx: number, shares: number) => {
+  const sellShares = (marketId: string, outcomeIdx: number, shares: number) => {
     const held = positions[marketId]?.[outcomeIdx] || 0;
-    if (shares > held) {
-      setError('Недостаточно акций!');
-      return;
-    }
+    if (shares > held) { setError('Недостаточно акций!'); return; }
     setError(null);
     const mk = markets.find(m => m.id === marketId);
     if (!mk) return;
     const prices = getPrices(mk.pool);
-    const revenue = prices[outcomeIdx] * shares * (1 - FEE);
     const newPool = [...mk.pool];
     newPool[outcomeIdx] = Math.max(1, newPool[outcomeIdx] - shares);
     setMarkets(prev => prev.map(m => m.id === marketId ? { ...m, pool: newPool } : m));
@@ -98,38 +90,61 @@ export function Predictions() {
       ...p,
       [marketId]: { ...p[marketId], [outcomeIdx]: held - shares }
     }));
-  }, [markets, positions]);
+  };
 
-  // NO WALLET — show connect prompt
+  // NO WALLET
   if (!wallet.connected) {
     return (
       <div className="card">
         <h2>🎯 OVEN Predictions</h2>
         <div style={{ textAlign: 'center', padding: '30px 16px' }}>
-          <p style={{ fontSize: '40px', marginBottom: '12px''>👛</p>
-          <p style={{ color: '#e8e8e8', fontSize: '15px', marginBottom: '8px' }}>Подключи TON-кошелёк</p>
-          <p style={{ color: '#888', fontSize: '13px', marginBottom: '16px' }}>Ставки принимаются в $OVEN. Без кошелька — не играешь.</p>
-          <button
-            onClick={connect}
-            style={{
-              padding: '12px 32px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #d4a017, #8b6914)',
-              color: '#fff',
-              fontSize: '15px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            🔗 Подключить кошелёк
-          </button>
+          <p style={{ fontSize: '40px', marginBottom: '12px' }}>👛</p>
+          <p style={{ color: '#e8e8e8', fontSize: '15px', marginBottom: '8px' }}>Подключи кошелёк</p>
+          <p style={{ color: '#888', fontSize: '13px', marginBottom: '20px' }}>Ставки в $OVEN. Без кошелька — не играешь.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              onClick={() => connect('tonkeeper')}
+              style={{
+                padding: '14px 24px',
+                borderRadius: '12px',
+                border: '1px solid rgba(212,160,23,0.3)',
+                background: 'rgba(212,160,23,0.08)',
+                color: '#e8e8e8',
+                fontSize: '15px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>💎</span> Tonkeeper
+            </button>
+            <button
+              onClick={() => connect('tonwallet')}
+              style={{
+                padding: '14px 24px',
+                borderRadius: '12px',
+                border: '1px solid rgba(212,160,23,0.3)',
+                background: 'rgba(212,160,23,0.08)',
+                color: '#e8e8e8',
+                fontSize: '15px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>🔵</span> TON Wallet
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // WALLET CONNECTED — show markets
+  // WALLET CONNECTED
   return (
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
@@ -139,7 +154,7 @@ export function Predictions() {
 
       <div className="balance-bar">
         <span className="label">🔥 $OVEN:</span>
-        <span className="amount">{wallet.ovenBalance} $OVEN</span>
+        <span className="amount">{wallet.ovenBalance}</span>
       </div>
 
       {error && (
@@ -155,9 +170,7 @@ export function Predictions() {
 
         return (
           <div key={mk.id} style={{ marginBottom: '20px', padding: '16px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.12)' }}>
-            <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#e8e8e8' }}>
-              {mk.emoji} {mk.title}
-            </p>
+            <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#e8e8e8' }}>{mk.emoji} {mk.title}</p>
 
             <div style={{ marginBottom: '12px' }}>
               {mk.outcomes.map((name, i) => {
@@ -180,22 +193,12 @@ export function Predictions() {
 
             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
               {mk.outcomes.map((name, i) => (
-                <button
-                  key={i}
-                  onClick={() => setTradeMode(prev => ({ ...prev, [mk.id]: { outcome: i, amount: prev[mk.id]?.amount || 10 } }))}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: trade?.outcome === i ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
-                    background: trade?.outcome === i ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
-                    color: '#e8e8e8',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Купить «{name}»
-                </button>
+                <button key={i} onClick={() => setTradeMode(prev => ({ ...prev, [mk.id]: { outcome: i, amount: prev[mk.id]?.amount || 10 } }))} style={{
+                  flex: 1, padding: '8px', borderRadius: '8px',
+                  border: trade?.outcome === i ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
+                  background: trade?.outcome === i ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
+                  color: '#e8e8e8', fontSize: '13px', cursor: 'pointer'
+                }}>Купить «{name}»</button>
               ))}
             </div>
 
@@ -204,79 +207,39 @@ export function Predictions() {
                 <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>Кол-во акций «{mk.outcomes[trade.outcome]}»:</p>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                   {[5, 10, 25, 50].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setTradeMode(prev => ({ ...prev, [mk.id]: { ...prev[mk.id], amount: n } }))}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: '6px',
-                        border: trade.amount === n ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
-                        background: trade.amount === n ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
-                        color: '#e8e8e8',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >{n}</button>
+                    <button key={n} onClick={() => setTradeMode(prev => ({ ...prev, [mk.id]: { ...prev[mk.id], amount: n } }))} style={{
+                      padding: '5px 12px', borderRadius: '6px',
+                      border: trade.amount === n ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
+                      background: trade.amount === n ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
+                      color: '#e8e8e8', fontSize: '12px', cursor: 'pointer'
+                    }}>{n}</button>
                   ))}
                 </div>
 
                 <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(212,160,23,0.08)', borderRadius: '6px' }}>
-                  <p style={{ fontSize: '12px', color: '#888' }}>
-                    Стоимость: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span> (по {Math.round(prices[trade.outcome] * 100)}¢ + 2%)
-                  </p>
-                  <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
-                    Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span>{' '}
-                    <span style={{ color: '#4f4', fontSize: '11px' }}>(+{Math.round(trade.amount - getCost(mk.pool, trade.outcome, trade.amount))})</span>
-                  </p>
+                  <p style={{ fontSize: '12px', color: '#888' }}>Стоимость: <span style={{ color: '#e8e8e8' }}>{getCost(mk.pool, trade.outcome, trade.amount).toFixed(2)} $OVEN</span> (по {Math.round(prices[trade.outcome] * 100)}¢ + 2%)</p>
+                  <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{trade.amount} $OVEN</span> <span style={{ color: '#4f4', fontSize: '11px' }}>(+{Math.round(trade.amount - getCost(mk.pool, trade.outcome, trade.amount))})</span></p>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    onClick={() => buyShares(mk.id, trade.outcome, trade.amount)}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #d4a017, #8b6914)',
-                      color: '#fff',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Купить за {getCost(mk.pool, trade.outcome, trade.amount).toFixed(1)} $OVEN
-                  </button>
+                  <button onClick={() => buyShares(mk.id, trade.outcome, trade.amount)} style={{
+                    flex: 1, padding: '8px', borderRadius: '8px', border: 'none',
+                    background: 'linear-gradient(135deg, #d4a017, #8b6914)', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer'
+                  }}>Купить за {getCost(mk.pool, trade.outcome, trade.amount).toFixed(1)} $OVEN</button>
                   {(myPos[trade.outcome] || 0) > 0 && (
-                    <button
-                      onClick={() => sellShares(mk.id, trade.outcome, Math.min(trade.amount, myPos[trade.outcome] || 0))}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(255,50,50,0.4)',
-                        background: 'rgba(255,50,50,0.1)',
-                        color: '#f88',
-                        fontSize: '13px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Продать {Math.min(trade.amount, myPos[trade.outcome] || 0)}
-                    </button>
+                    <button onClick={() => sellShares(mk.id, trade.outcome, Math.min(trade.amount, myPos[trade.outcome] || 0))} style={{
+                      flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,50,50,0.4)',
+                      background: 'rgba(255,50,50,0.1)', color: '#f88', fontSize: '13px', cursor: 'pointer'
+                    }}>Продать {Math.min(trade.amount, myPos[trade.outcome] || 0)}</button>
                   )}
                 </div>
               </div>
             )}
 
-            <button
-              onClick={() => setShowHint(prev => ({ ...prev, [mk.id]: !prev[mk.id] }))}
-              style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '8px' }}
-            >
+            <button onClick={() => setShowHint(prev => ({ ...prev, [mk.id]: !prev[mk.id] }))} style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '8px' }}>
               {showHint[mk.id] ? '🔮 Скрыть подсказку' : '🔮 Подсказка гороскопа'}
             </button>
-            {showHint[mk.id] && (
-              <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>{mk.hint}</p>
-            )}
+            {showHint[mk.id] && <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>{mk.hint}</p>}
           </div>
         );
       })}

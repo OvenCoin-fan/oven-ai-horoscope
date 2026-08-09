@@ -9,9 +9,18 @@ export function MintOven() {
       <div className="card">
         <h2>♈ Минт $OVEN</h2>
         <p style={{ color: '#888', fontSize: '14px', marginBottom: '16px' }}>Подключи кошелёк, чтобы получить $OVEN.</p>
-        <button className="mint-btn" onClick={connect}>
-          🔗 Подключить кошелёк
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button onClick={() => connect('tonkeeper')} style={{
+            padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+            background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+          }}><span style={{ fontSize: '20px' }}>💎</span> Tonkeeper</button>
+          <button onClick={() => connect('tonwallet')} style={{
+            padding: '14px 24px', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.3)',
+            background: 'rgba(212,160,23,0.08)', color: '#e8e8e8', fontSize: '15px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+          }}><span style={{ fontSize: '20px' }}>🔵</span> TON Wallet</button>
+        </div>
       </div>
     );
   }
@@ -25,7 +34,7 @@ export function MintOven() {
         <p style={{ fontSize: '13px', color: '#888' }}>💎 Ставь $OVEN на предсказания</p>
       </div>
       <div className="balance-bar" style={{ marginBottom: '12px' }}>
-        <span className="label">🔥 Ваш $OVEN:</span>
+        <span className="label">🔥 $OVEN:</span>
         <span className="amount">{wallet.ovenBalance}</span>
       </div>
       <div className="balance-bar">

@@ -1,7 +1,6 @@
-import { useState, useCallback, createContext, useContext } from 'react';
+import { useState, createContext, useContext } from 'react';
 import '../App.css';
 
-// Wallet context
 interface WalletState {
   connected: boolean;
   address: string | null;
@@ -11,7 +10,7 @@ interface WalletState {
 
 const defaultWallet: WalletState = { connected: false, address: null, ovenBalance: 0, tonBalance: 0 };
 
-export const WalletContext = createContext<{ wallet: WalletState; connect: () => void; disconnect: () => void }>({
+export const WalletContext = createContext<{ wallet: WalletState; connect: (type: string) => void; disconnect: () => void }>({
   wallet: defaultWallet,
   connect: () => {},
   disconnect: () => {}
@@ -22,13 +21,13 @@ export const useWallet = () => useContext(WalletContext);
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>(defaultWallet);
 
-  const connect = () => {
-    // In production: TonConnect UI
-    // Demo: simulate wallet with balances
+  const connect = (type: string) => {
+    // In production: TonConnect UI with real wallet
+    // Demo: simulate wallet connection
     setWallet({
       connected: true,
       address: 'UQBCF...W9aR',
-      ovenBalance: 500,
+      ovenBalance: 0,
       tonBalance: 2.5
     });
   };
