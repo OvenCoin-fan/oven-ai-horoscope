@@ -5,7 +5,7 @@ interface Event {
   id: string;
   emoji: string;
   title: string;
-  options: string[];
+  options: { label: string; odds: number }[];
   hint: string;
 }
 
@@ -14,55 +14,77 @@ const EVENTS: Event[] = [
     id: 'btc-65k',
     emoji: '📈',
     title: 'BTC выше $65,000 к 10 августа?',
-    options: ['Да 🔥', 'Нет 📉'],
-    hint: '♈ Звёзды говорят: Марс в Овне — к росту. Но Сатурн тормозит. Риск 50/50.'
+    options: [{ label: 'Да 🚀', odds: 1.8 }, { label: 'Нет 📉', odds: 2.1 }],
+    hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит. Шанс на рост есть, но рискованный.'
   },
   {
     id: 'rain-moscow',
     emoji: '🌧',
     title: 'Дождь в Москве 10 августа?',
-    options: ['Да 🌧', 'Нет ☀️'],
-    hint: '♈ Нептун в Рыбах — вода близко. Вероятность осадков высока.'
+    options: [{ label: 'Да 🌧', odds: 1.4 }, { label: 'Нет ☀️', odds: 3.0 }],
+    hint: '♈ Нептун в Рыбах — вода близко. Осадки вероятны, но не гарантированы.'
   },
   {
     id: 'ton-up',
     emoji: '💎',
-    title: 'TON вырастет на 5% за неделю?',
-    options: ['Да 🚀', 'Нет 📉'],
-    hint: '♈ Венера и Юпитер в союзе — рост вероятен. Но не гарантирован.'
+    title: 'TON +5% за неделю?',
+    options: [{ label: 'Да 🔥', odds: 2.5 }, { label: 'Нет 📉', odds: 1.5 }],
+    hint: '♈ Венера и Юпитер в союзе — рост вероятен. Но рынок непредсказуем.'
   }
 ];
 
 const STAKES = [10, 50, 100];
 
 export function Predictions() {
+  const [balance, setBalance] = useState(500);
   const [bets, setBets] = useState<Record<string, { option: number; stake: number }>>({});
   const [showHint, setShowHint] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const placeBet = (eventId: string, optionIdx: number, stake: number) => {
     setBets(prev => ({ ...prev, [eventId]: { option: optionIdx, stake } }));
+    setError(null);
   };
 
   const submitBet = (eventId: string) => {
-    if (!bets[eventId]) return;
+    const bet = bets[eventId];
+    if (!bet) return;
+    if (bet.stake > balance) {
+      setError('Недостаточно $OVEN на балансе!');
+      return;
+    }
+    setBalance(prev => prev - bet.stake);
     setSubmitted(prev => ({ ...prev, [eventId]: true }));
+    setError(null);
   };
 
   return (
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
-      <p style={{ color: '#999', fontSize: '13px', marginBottom: '16px' }}>
-        Ставь $OVEN на мировые события. Гороскоп подскажет.
+      <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>
+        Ставь $OVEN на события. Угадал — забирай выигрыш.
       </p>
 
+      {/* Balance */}
+      <div className="balance-bar">
+        <span className="label">💰 Ваш баланс:</span>
+        <span className="amount">{balance} $OVEN</span>
+      </div>
+
+      {error && (
+        <div style={{ padding: '10px', background: 'rgba(255,50,50,0.1)', borderRadius: '8px', border: '1px solid rgba(255,50,50,0.3)', marginBottom: '12px' }}>
+          <p style={{ fontSize: '13px', color: '#f55' }}>⚠️ {error}</p>
+        </div>
+      )}
+
       {EVENTS.map(ev => (
-        <div key={ev.id} style={{ marginBottom: '20px', padding: '16px', background: 'rgba(255,107,0,0.05)', borderRadius: '12px', border: '1px solid rgba(255,107,0,0.15)' }}>
-          <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
+        <div key={ev.id} style={{ marginBottom: '20px', padding: '16px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.12)' }}>
+          <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '10px', color: '#e8e8e8' }}>
             {ev.emoji} {ev.title}
           </p>
 
-          {/* Options */}
+          {/* Options with odds */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             {ev.options.map((opt, i) => (
               <button
@@ -75,15 +97,16 @@ export function Predictions() {
                   flex: 1,
                   padding: '10px 8px',
                   borderRadius: '10px',
-                  border: bets[ev.id]?.option === i ? '2px solid #ff6b00' : '1px solid rgba(255,107,0,0.3)',
-                  background: bets[ev.id]?.option === i ? 'rgba(255,107,0,0.2)' : 'rgba(255,107,0,0.05)',
-                  color: '#fff',
+                  border: bets[ev.id]?.option === i ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
+                  background: bets[ev.id]?.option === i ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
+                  color: '#e8e8e8',
                   fontSize: '14px',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
               >
-                {opt}
+                <div>{opt.label}</div>
+                <div style={{ fontSize: '12px', color: '#d4a017', marginTop: '4px' }}>×{opt.odds}</div>
               </button>
             ))}
           </div>
@@ -91,7 +114,7 @@ export function Predictions() {
           {/* Stake selector */}
           {bets[ev.id]?.option !== undefined && !submitted[ev.id] && (
             <div style={{ marginBottom: '10px' }}>
-              <p style={{ fontSize: '12px', color: '#999', marginBottom: '6px' }}>Ставка $OVEN:</p>
+              <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>Ставка $OVEN:</p>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {STAKES.map(s => (
                   <button
@@ -100,17 +123,30 @@ export function Predictions() {
                     style={{
                       padding: '6px 14px',
                       borderRadius: '8px',
-                      border: bets[ev.id]?.stake === s ? '2px solid #ff6b00' : '1px solid rgba(255,107,0,0.3)',
-                      background: bets[ev.id]?.stake === s ? 'rgba(255,107,0,0.2)' : 'rgba(255,107,0,0.05)',
-                      color: '#fff',
+                      border: bets[ev.id]?.stake === s ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)',
+                      background: bets[ev.id]?.stake === s ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)',
+                      color: '#e8e8e8',
                       fontSize: '13px',
                       cursor: 'pointer'
                     }}
                   >
-                    {s} 🔥
+                    {s}
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Potential win */}
+          {bets[ev.id] && !submitted[ev.id] && (
+            <div style={{ padding: '8px 12px', background: 'rgba(212,160,23,0.08)', borderRadius: '8px', marginBottom: '10px' }}>
+              <p style={{ fontSize: '13px', color: '#888' }}>
+                Ставка: <span style={{ color: '#e8e8e8', fontWeight: 600 }}>{bets[ev.id].stake} $OVEN</span>
+                {' • '}
+                Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds)} $OVEN</span>
+                {' '}
+                <span style={{ color: '#4f4', fontSize: '12px' }}>(+{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds - bets[ev.id].stake)})</span>
+              </p>
             </div>
           )}
 
@@ -123,7 +159,7 @@ export function Predictions() {
                 padding: '10px',
                 borderRadius: '10px',
                 border: 'none',
-                background: 'linear-gradient(135deg, #ff6b00, #ff2200)',
+                background: 'linear-gradient(135deg, #d4a017, #8b6914)',
                 color: '#fff',
                 fontSize: '14px',
                 fontWeight: 700,
@@ -131,33 +167,29 @@ export function Predictions() {
                 marginBottom: '8px'
               }}
             >
-              Поставить {bets[ev.id].stake} $OVEN на «{ev.options[bets[ev.id].option]}»
+              Поставить {bets[ev.id].stake} $OVEN
             </button>
           )}
 
           {/* Submitted */}
           {submitted[ev.id] && (
-            <div style={{ padding: '10px', background: 'rgba(0,255,100,0.1)', borderRadius: '8px', border: '1px solid rgba(0,255,100,0.3)', marginBottom: '8px' }}>
-              <p style={{ fontSize: '13px', color: '#4f4' }}>✅ Ставка принята: {bets[ev.id].stake} $OVEN на «{ev.options[bets[ev.id].option]}»</p>
+            <div style={{ padding: '10px', background: 'rgba(0,200,100,0.08)', borderRadius: '8px', border: '1px solid rgba(0,200,100,0.25)', marginBottom: '8px' }}>
+              <p style={{ fontSize: '13px', color: '#4f4' }}>✅ Ставка {bets[ev.id].stake} $OVEN на «{ev.options[bets[ev.id].option].label}»</p>
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                Возможный выигрыш: <span style={{ color: '#d4a017' }}>{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds)} $OVEN</span>
+              </p>
             </div>
           )}
 
-          {/* Horoscope hint */}
+          {/* Hint */}
           <button
             onClick={() => setShowHint(prev => ({ ...prev, [ev.id]: !prev[ev.id] }))}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#ff6b00',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 0'
-            }}
+            style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0' }}
           >
             {showHint[ev.id] ? '🔮 Скрыть подсказку' : '🔮 Подсказка гороскопа'}
           </button>
           {showHint[ev.id] && (
-            <p style={{ fontSize: '13px', color: '#ccc', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>
               {ev.hint}
             </p>
           )}

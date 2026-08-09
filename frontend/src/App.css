@@ -1,20 +1,18 @@
-:root{--fire-orange:#ff6b00;--fire-red:#ff2200;--card-bg:rgba(255,107,0,0.08);--card-border:rgba(255,107,0,0.2)}
-.app{max-width:480px;margin:0 auto;padding:16px;min-height:100vh}
+:root{--gold:#d4a017;--gold-light:#f0d060;--bg-dark:#0d0d12;--card-bg:rgba(212,160,23,0.06);--card-border:rgba(212,160,23,0.18);--accent:#d4a017;--accent2:#8b6914;--text:#e8e8e8;--text-dim:#888}
+.app{max-width:480px;margin:0 auto;padding:16px;min-height:100vh;background:var(--bg-dark)}
 .main{display:flex;flex-direction:column;gap:20px;padding-bottom:80px}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:20px;backdrop-filter:blur(10px)}
-.card h2{font-size:20px;margin-bottom:16px;background:linear-gradient(90deg,var(--fire-orange),var(--fire-red));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.card h2{font-size:20px;margin-bottom:16px;background:linear-gradient(90deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .zodiac-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.zodiac-btn{background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.3);border-radius:12px;padding:12px 4px;color:#fff;font-size:12px;cursor:pointer;transition:all 0.2s;text-align:center}
-.zodiac-btn:hover,.zodiac-btn.active{background:rgba(255,107,0,0.3);border-color:var(--fire-orange);transform:scale(1.05)}
+.zodiac-btn{background:rgba(212,160,23,0.08);border:1px solid rgba(212,160,23,0.25);border-radius:12px;padding:12px 4px;color:var(--text);font-size:12px;cursor:pointer;transition:all 0.2s;text-align:center}
+.zodiac-btn:hover,.zodiac-btn.active{background:rgba(212,160,23,0.2);border-color:var(--gold);transform:scale(1.05)}
 .zodiac-btn .emoji{font-size:24px;display:block;margin-bottom:4px}
-.horoscope-result{margin-top:16px;padding:16px;background:rgba(255,107,0,0.05);border-radius:12px;border-left:3px solid var(--fire-orange);line-height:1.6;font-size:15px}
-.loading{text-align:center;color:var(--fire-orange);font-style:italic;padding:20px;animation:pulse 1.5s infinite}
-.mint-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--fire-orange),var(--fire-red));border:none;border-radius:12px;color:#fff;font-size:18px;font-weight:700;cursor:pointer;transition:all 0.2s}
-.mint-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,107,0,0.4)}
-.mint-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
-.wallet-status{display:flex;align-items:center;gap:8px;padding:12px;background:rgba(255,107,0,0.05);border-radius:12px;margin-bottom:12px}
-.wallet-dot{width:8px;height:8px;border-radius:50%}
-.wallet-dot.connected{background:#00ff88}
-.wallet-dot.disconnected{background:#ff4444}
-.footer{text-align:center;padding:20px;color:#999;font-size:12px}
+.horoscope-result{margin-top:16px;padding:16px;background:rgba(212,160,23,0.04);border-radius:12px;border-left:3px solid var(--gold);line-height:1.6;font-size:15px;color:var(--text)}
+.loading{text-align:center;color:var(--gold);font-style:italic;padding:20px;animation:pulse 1.5s infinite}
+.mint-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--gold),var(--accent2));border:none;border-radius:12px;color:#fff;font-size:18px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.mint-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,160,23,0.3)}
+.footer{text-align:center;padding:20px;color:#555;font-size:12px}
+.balance-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(212,160,23,0.08);border:1px solid rgba(212,160,23,0.2);border-radius:12px;margin-bottom:16px}
+.balance-bar .label{color:var(--text-dim);font-size:13px}
+.balance-bar .amount{color:var(--gold-light);font-size:16px;font-weight:700}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}

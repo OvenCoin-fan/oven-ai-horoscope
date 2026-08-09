@@ -40,7 +40,7 @@ export function Horoscope() {
   return (
     <div className="card">
       <h2>🔮 AI Гороскоп</h2>
-      <p style={{color:'#999',fontSize:'13px',marginBottom:'12px'}}>Выбери знак — Mira предскажет день</p>
+      <p style={{color:'#888',fontSize:'13px',marginBottom:'12px'}}>Выбери знак — Mira предскажет день</p>
       <div className="zodiac-grid">
         {Z.map(({s,e,n})=><button key={s} className={`zodiac-btn ${sel===s?'active':''}`} onClick={()=>go(s)}><span className="emoji">{e}</span>{n}</button>)}
       </div>
