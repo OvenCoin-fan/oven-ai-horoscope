@@ -37,7 +37,7 @@ const STAKE_TIERS = [
   {id:'30d',label:'30 дней',days:30,apy:10,emoji:'🥇'},
 ];
 
-const SWAP_RATE = 1000; // 1 GRAM = 1000 $OVEN
+const SWAP_RATE = 1000;
 
 function getPrices(pool) {
   const t = pool[0] + pool[1];
@@ -55,7 +55,7 @@ function App() {
   const [error, setError] = useState('');
   const [trade, setTrade] = useState({});
   const [hint, setHint] = useState({});
-  const [swapAmt, setSwapAmt] = useState(1);
+  const [swapAmt, setSwapAmt] = useState('');
   const [stakes, setStakes] = useState([]);
   const [stakeAmt, setStakeAmt] = useState('');
   const [selTier, setSelTier] = useState('7d');
@@ -68,22 +68,18 @@ function App() {
   }, []);
 
   const connectWallet = () => setConnected(true);
+  const getHoro = (s) => { setSelSign(s); setHoroText(HOROS[s] || HOROS.aries); };
 
-  const getHoro = (s) => {
-    setSelSign(s);
-    setHoroText(HOROS[s] || HOROS.aries);
-  };
-
-  // STON.fi swap: GRAM → $OVEN
   const doSwap = () => {
-    if (swapAmt <= 0) { setError('Укажи сумму'); return; }
-    if (swapAmt > gramBal) { setError('Недостаточно GRAM!'); return; }
+    const amt = parseFloat(swapAmt);
+    if (!amt || amt <= 0) { setError('Укажи сумму GRAM'); return; }
+    if (amt > gramBal) { setError('Недостаточно GRAM!'); return; }
     setError('');
-    setGramBal(prev => +(prev - swapAmt).toFixed(4));
-    setOvenBal(prev => prev + swapAmt * SWAP_RATE);
+    setGramBal(prev => +(prev - amt).toFixed(4));
+    setOvenBal(prev => prev + Math.floor(amt * SWAP_RATE));
+    setSwapAmt('');
   };
 
-  // Stake $OVEN
   const doStake = () => {
     const amt = parseInt(stakeAmt);
     if (!amt || amt <= 0) { setError('Укажи сумму $OVEN'); return; }
@@ -106,7 +102,6 @@ function App() {
     setStakeAmt('');
   };
 
-  // Claim unlocked stake
   const doClaim = (stakeId) => {
     const s = stakes.find(x => x.id === stakeId);
     if (!s || s.claimed || now < s.unlockTime) return;
@@ -148,6 +143,8 @@ function App() {
     return `${m}м`;
   };
 
+  const swapNum = parseFloat(swapAmt) || 0;
+
   return (
     <div className="app">
       <header className="card" style={{textAlign:'center',marginBottom:'8px'}}>
@@ -157,7 +154,6 @@ function App() {
       </header>
 
       <main className="main">
-        {/* Гороскоп */}
         <div className="card">
           <h2>🔮 AI Гороскоп</h2>
           <p style={{color:'#888',fontSize:'13px',marginBottom:'12px'}}>Выбери знак — Mira предскажет день</p>
@@ -192,7 +188,6 @@ function App() {
           </div>
         ) : (
           <>
-            {/* Баланс */}
             <div className="card">
               <div className="balance-bar" style={{marginBottom:'0'}}>
                 <div><span className="label">🔥 $OVEN</span><span className="amount" style={{marginLeft:'8px'}}>{ovenBal.toLocaleString()}</span></div>
@@ -208,7 +203,6 @@ function App() {
               )}
             </div>
 
-            {/* Табы: Свап / Стейкинг */}
             <div className="card">
               <div style={{display:'flex',gap:'6px',marginBottom:'16px'}}>
                 <button onClick={() => setTab('swap')} style={{flex:1,padding:'10px',borderRadius:'10px',border:tab==='swap'?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:tab==='swap'?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'14px',fontWeight:tab==='swap'?700:400,cursor:'pointer'}}>💱 Купить $OVEN</button>
@@ -221,22 +215,22 @@ function App() {
                     <p style={{fontSize:'13px',color:'#888'}}>💱 STON.fi: <span style={{color:'#e8e8e8',fontWeight:600}}>1 GRAM = {SWAP_RATE.toLocaleString()} $OVEN</span></p>
                     <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Обмен через STON.fi DEX. В продакшене — реальный swap.</p>
                   </div>
-                  <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
-                    {[0.5, 1, 2, 5].map(n => (
-                      <button key={n} onClick={() => setSwapAmt(n)} style={{flex:1,padding:'8px',borderRadius:'8px',border:swapAmt===n?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:swapAmt===n?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>{n}</button>
-                    ))}
-                  </div>
-                  <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px',marginBottom:'12px'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:'14px',color:'#888'}}>Отдаёшь:</span>
-                      <span style={{fontSize:'14px',color:'#e8e8e8',fontWeight:600}}>{swapAmt} GRAM</span>
+
+                  <div style={{padding:'12px',background:'rgba(212,160,23,0.06)',borderRadius:'12px',marginBottom:'12px'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
+                      <span style={{fontSize:'13px',color:'#888'}}>Отдаёшь:</span>
+                      <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                        <input type="number" placeholder="0" value={swapAmt} onChange={e => setSwapAmt(e.target.value)} min="0" step="any" style={{width:'120px',padding:'8px 12px',borderRadius:'8px',border:'1px solid rgba(212,160,23,0.25)',background:'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'16px',textAlign:'right',outline:'none',boxSizing:'border-box'}} />
+                        <span style={{fontSize:'14px',color:'#e8e8e8',fontWeight:600}}>GRAM</span>
+                      </div>
                     </div>
-                    <p style={{textAlign:'center',fontSize:'18px',margin:'6px 0'}}>⬇️</p>
+                    <p style={{textAlign:'center',fontSize:'18px',margin:'4px 0'}}>⬇️</p>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:'14px',color:'#888'}}>Получаешь:</span>
-                      <span style={{fontSize:'16px',color:'#d4a017',fontWeight:700}}>{(swapAmt * SWAP_RATE).toLocaleString()} $OVEN</span>
+                      <span style={{fontSize:'13px',color:'#888'}}>Получаешь:</span>
+                      <span style={{fontSize:'16px',color:'#d4a017',fontWeight:700}}>{swapNum > 0 ? Math.floor(swapNum * SWAP_RATE).toLocaleString() : '0'} $OVEN</span>
                     </div>
                   </div>
+
                   <button className="mint-btn" onClick={doSwap}>💱 Обменять через STON.fi</button>
                 </>
               )}
@@ -248,7 +242,6 @@ function App() {
                     <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Награды выплачиваются после разблокировки</p>
                   </div>
 
-                  {/* Выбор тарифа */}
                   <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
                     {STAKE_TIERS.map(tier => (
                       <button key={tier.id} onClick={() => setSelTier(tier.id)} style={{flex:1,padding:'10px 6px',borderRadius:'10px',border:selTier===tier.id?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:selTier===tier.id?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'12px',cursor:'pointer',textAlign:'center'}}>
@@ -259,10 +252,8 @@ function App() {
                     ))}
                   </div>
 
-                  {/* Сумма */}
                   <input type="number" placeholder="Сумма $OVEN" value={stakeAmt} onChange={e => setStakeAmt(e.target.value)} style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid rgba(212,160,23,0.25)',background:'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'15px',marginBottom:'12px',boxSizing:'border-box',outline:'none'}} />
 
-                  {/* Предпросмотр */}
                   {stakeAmt && parseInt(stakeAmt) > 0 && (() => {
                     const tier = STAKE_TIERS.find(t => t.id === selTier);
                     const amt = parseInt(stakeAmt);
@@ -291,7 +282,6 @@ function App() {
 
                   <button className="mint-btn" onClick={doStake}>🔒 Заблокировать $OVEN</button>
 
-                  {/* Активные стейки */}
                   {stakes.filter(s => !s.claimed).length > 0 && (
                     <div style={{marginTop:'16px'}}>
                       <h3 style={{fontSize:'15px',color:'#e8e8e8',marginBottom:'10px'}}>📋 Активные стейки</h3>
@@ -323,7 +313,6 @@ function App() {
               )}
             </div>
 
-            {/* Predictions */}
             <div className="card">
               <h2>🎯 OVEN Predictions</h2>
               <p style={{color:'#888',fontSize:'13px',marginBottom:'12px'}}>Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.</p>
