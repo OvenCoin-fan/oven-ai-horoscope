@@ -1,21 +1,20 @@
-# 🔥 $OVEN AI Horoscope — TON Mini App
+# $OVEN AI Horoscope
 
-Первый гороскоп-токен на TON с AI-предсказаниями от Mira.
+First AI Horoscope Token on TON.
 
-Built for [STON.fi Vibe Coding Hackathon](https://ston.fi/hackathon) — Mira Track.
+- 🔮 AI Гороскоп через Mira API
+- 🎯 Prediction Market (Polymarket-style)
+- 🔥 $OVEN Jetton на TON
+- 💎 TonConnect кошелёк
 
-## 🚀 Quick Start
+## Quick Start
+
 ```bash
-cd frontend && npm install && npm run dev
+cd frontend
+npm install
+npm run dev
 ```
 
-## 🌟 Features
-- AI Horoscope powered by Mira
-- $OVEN Jetton token on TON
-- TON Connect wallet
-- Telegram Mini App
+## Deploy
 
-## 🔗 Links
-- [STON.fi Hackathon](https://ston.fi/hackathon)
-- [Mira AI](https://t.me/mira)
-- [TON](https://ton.org)
+Push to main — Vercel auto-deploys.
