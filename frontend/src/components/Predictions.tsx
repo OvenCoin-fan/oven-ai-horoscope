@@ -13,27 +13,28 @@ const EVENTS: Event[] = [
   {
     id: 'btc-65k',
     emoji: '📈',
-    title: 'BTC выше $65,000 к 10 августа?',
-    options: [{ label: 'Да 🚀', odds: 1.8 }, { label: 'Нет 📉', odds: 2.1 }],
-    hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит. Шанс на рост есть, но рискованный.'
+    title: 'BTC закроется выше $65,000 в пятницу?',
+    options: [{ label: 'Да 🚀', odds: 1.7 }, { label: 'Нет 📉', odds: 2.2 }],
+    hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит. Рынок нервный, 50/50.'
   },
   {
-    id: 'rain-moscow',
-    emoji: '🌧',
-    title: 'Дождь в Москве 10 августа?',
-    options: [{ label: 'Да 🌧', odds: 1.4 }, { label: 'Нет ☀️', odds: 3.0 }],
-    hint: '♈ Нептун в Рыбах — вода близко. Осадки вероятны, но не гарантированы.'
-  },
-  {
-    id: 'ton-up',
+    id: 'ton-top10',
     emoji: '💎',
-    title: 'TON +5% за неделю?',
-    options: [{ label: 'Да 🔥', odds: 2.5 }, { label: 'Нет 📉', odds: 1.5 }],
-    hint: '♈ Венера и Юпитер в союзе — рост вероятен. Но рынок непредсказуем.'
+    title: 'TON войдёт в топ-10 криптовалют к сентябрю?',
+    options: [{ label: 'Да 🔥', odds: 3.5 }, { label: 'Нет 📉', odds: 1.3 }],
+    hint: '♈ Юпитер расширяет границы, но конкуренция высока. Долгий шанс.'
+  },
+  {
+    id: 'elon-tweet',
+    emoji: '🐦',
+    title: 'Илон Маск упомянет DOGE или TON до 15 августа?',
+    options: [{ label: 'Да 🐕', odds: 2.0 }, { label: 'Нет 🤷', odds: 1.8 }],
+    hint: '♈ Меркурий в ретрограде — неожиданные сообщения. Маск непредсказуем.'
   }
 ];
 
 const STAKES = [10, 50, 100];
+const HOUSE_EDGE = 0.10;
 
 export function Predictions() {
   const [balance, setBalance] = useState(500);
@@ -59,16 +60,20 @@ export function Predictions() {
     setError(null);
   };
 
+  const netWin = (bet: { stake: number; option: number }, ev: Event) => {
+    const gross = bet.stake * ev.options[bet.option].odds;
+    return Math.round(gross * (1 - HOUSE_EDGE));
+  };
+
   return (
     <div className="card">
       <h2>🎯 OVEN Predictions</h2>
       <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>
-        Ставь $OVEN на события. Угадал — забирай выигрыш.
+        Ставь $OVEN на непредсказуемые события. Угадал — забирай.
       </p>
 
-      {/* Balance */}
       <div className="balance-bar">
-        <span className="label">💰 Ваш баланс:</span>
+        <span className="label">💰 Баланс:</span>
         <span className="amount">{balance} $OVEN</span>
       </div>
 
@@ -84,7 +89,6 @@ export function Predictions() {
             {ev.emoji} {ev.title}
           </p>
 
-          {/* Options with odds */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             {ev.options.map((opt, i) => (
               <button
@@ -111,7 +115,6 @@ export function Predictions() {
             ))}
           </div>
 
-          {/* Stake selector */}
           {bets[ev.id]?.option !== undefined && !submitted[ev.id] && (
             <div style={{ marginBottom: '10px' }}>
               <p style={{ fontSize: '12px', color: '#888', marginBottom: '6px' }}>Ставка $OVEN:</p>
@@ -137,20 +140,22 @@ export function Predictions() {
             </div>
           )}
 
-          {/* Potential win */}
           {bets[ev.id] && !submitted[ev.id] && (
             <div style={{ padding: '8px 12px', background: 'rgba(212,160,23,0.08)', borderRadius: '8px', marginBottom: '10px' }}>
               <p style={{ fontSize: '13px', color: '#888' }}>
                 Ставка: <span style={{ color: '#e8e8e8', fontWeight: 600 }}>{bets[ev.id].stake} $OVEN</span>
-                {' • '}
-                Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds)} $OVEN</span>
+              </p>
+              <p style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>
+                Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{netWin(bets[ev.id], ev)} $OVEN</span>
                 {' '}
-                <span style={{ color: '#4f4', fontSize: '12px' }}>(+{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds - bets[ev.id].stake)})</span>
+                <span style={{ color: '#4f4', fontSize: '12px' }}>(+{netWin(bets[ev.id], ev) - bets[ev.id].stake})</span>
+              </p>
+              <p style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                Комиссия 10% от выигрыша
               </p>
             </div>
           )}
 
-          {/* Submit */}
           {bets[ev.id] && !submitted[ev.id] && (
             <button
               onClick={() => submitBet(ev.id)}
@@ -171,17 +176,15 @@ export function Predictions() {
             </button>
           )}
 
-          {/* Submitted */}
           {submitted[ev.id] && (
             <div style={{ padding: '10px', background: 'rgba(0,200,100,0.08)', borderRadius: '8px', border: '1px solid rgba(0,200,100,0.25)', marginBottom: '8px' }}>
               <p style={{ fontSize: '13px', color: '#4f4' }}>✅ Ставка {bets[ev.id].stake} $OVEN на «{ev.options[bets[ev.id].option].label}»</p>
               <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                Возможный выигрыш: <span style={{ color: '#d4a017' }}>{Math.round(bets[ev.id].stake * ev.options[bets[ev.id].option].odds)} $OVEN</span>
+                Возможный выигрыш: <span style={{ color: '#d4a017' }}>{netWin(bets[ev.id], ev)} $OVEN</span> (−10% комиссия)
               </p>
             </div>
           )}
 
-          {/* Hint */}
           <button
             onClick={() => setShowHint(prev => ({ ...prev, [ev.id]: !prev[ev.id] }))}
             style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0' }}
