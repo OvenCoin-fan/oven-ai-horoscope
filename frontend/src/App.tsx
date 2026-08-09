@@ -119,6 +119,7 @@ function App() {
     const np = [...mk.pool]; np[idx] += shares;
     setMarkets(prev => prev.map(m => m.id === mkId ? {...m, pool: np} : m));
     setPositions(p => ({...p, [mkId]: {...p[mkId], [idx]: (p[mkId]?.[idx]||0) + shares}}));
+    setTrade(prev => ({...prev, [mkId]: {...prev[mkId], amount: ''}}));
   };
 
   const sellShares = (mkId, idx, shares) => {
@@ -221,7 +222,7 @@ function App() {
                       <span style={{fontSize:'13px',color:'#888'}}>Отдаёшь:</span>
                       <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
                         <input type="number" placeholder="0" value={swapAmt} onChange={e => setSwapAmt(e.target.value)} min="0" step="any" style={{width:'120px',padding:'8px 12px',borderRadius:'8px',border:'1px solid rgba(212,160,23,0.25)',background:'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'16px',textAlign:'right',outline:'none',boxSizing:'border-box'}} />
-                        <span style={{fontSize:'14px',color:'#e8e8e8',fontWeight:600}}>GRAM</span>
+                        <span style={{fontSize:'14px',color:'#e8e8e8',fontWeight:600'}}>GRAM</span>
                       </div>
                     </div>
                     <p style={{textAlign:'center',fontSize:'18px',margin:'4px 0'}}>⬇️</p>
@@ -321,6 +322,7 @@ function App() {
                 const prices = getPrices(mk.pool);
                 const myPos = positions[mk.id] || {};
                 const t = trade[mk.id];
+                const shareNum = parseFloat(t?.amount) || 0;
                 return (
                   <div key={mk.id} style={{marginBottom:'20px',padding:'16px',background:'rgba(212,160,23,0.04)',borderRadius:'12px',border:'1px solid rgba(212,160,23,0.12)'}}>
                     <p style={{fontSize:'15px',fontWeight:600,marginBottom:'12px',color:'#e8e8e8'}}>{mk.emoji} {mk.title}</p>
@@ -344,25 +346,23 @@ function App() {
                     </div>
                     <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
                       {mk.outcomes.map((name, i) => (
-                        <button key={i} onClick={() => setTrade(p => ({...p,[mk.id]:{outcome:i,amount:p[mk.id]?.amount||10}}))} style={{flex:1,padding:'8px',borderRadius:'8px',border:t?.outcome===i?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:t?.outcome===i?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>Купить «{name}»</button>
+                        <button key={i} onClick={() => setTrade(p => ({...p,[mk.id]:{outcome:i,amount:p[mk.id]?.amount||''}}))} style={{flex:1,padding:'8px',borderRadius:'8px',border:t?.outcome===i?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:t?.outcome===i?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>Купить «{name}»</button>
                       ))}
                     </div>
                     {t && t.outcome !== undefined && (
                       <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px'}}>
                         <p style={{fontSize:'12px',color:'#888',marginBottom:'6px'}}>Кол-во акций «{mk.outcomes[t.outcome]}»:</p>
-                        <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
-                          {[5,10,25,50].map(n => (
-                            <button key={n} onClick={() => setTrade(p => ({...p,[mk.id]:{...p[mk.id],amount:n}}))} style={{padding:'5px 12px',borderRadius:'6px',border:t.amount===n?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:t.amount===n?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'12px',cursor:'pointer'}}>{n}</button>
-                          ))}
-                        </div>
-                        <div style={{marginBottom:'8px',padding:'8px',background:'rgba(212,160,23,0.08)',borderRadius:'6px'}}>
-                          <p style={{fontSize:'12px',color:'#888'}}>Стоимость: <span style={{color:'#e8e8e8'}}>{(prices[t.outcome]*t.amount*1.02).toFixed(2)} $OVEN</span></p>
-                          <p style={{fontSize:'12px',color:'#888',marginTop:'2px'}}>Выигрыш: <span style={{color:'#d4a017',fontWeight:700}}>{t.amount} $OVEN</span></p>
-                        </div>
+                        <input type="number" placeholder="Введите количество" value={t.amount || ''} onChange={e => setTrade(p => ({...p,[mk.id]:{...p[mk.id],amount:e.target.value}}))} min="0" step="any" style={{width:'100%',padding:'10px 12px',borderRadius:'8px',border:'1px solid rgba(212,160,23,0.25)',background:'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'15px',marginBottom:'10px',boxSizing:'border-box',outline:'none'}} />
+                        {shareNum > 0 && (
+                          <div style={{marginBottom:'10px',padding:'8px',background:'rgba(212,160,23,0.08)',borderRadius:'6px'}}>
+                            <p style={{fontSize:'12px',color:'#888'}}>Стоимость: <span style={{color:'#e8e8e8'}}>{(prices[t.outcome]*shareNum*1.02).toFixed(2)} $OVEN</span></p>
+                            <p style={{fontSize:'12px',color:'#888',marginTop:'2px'}}>Выигрыш: <span style={{color:'#d4a017',fontWeight:700'}}>{shareNum.toLocaleString()} $OVEN</span></p>
+                          </div>
+                        )}
                         <div style={{display:'flex',gap:'6px'}}>
-                          <button onClick={() => buyShares(mk.id,t.outcome,t.amount)} style={{flex:1,padding:'8px',borderRadius:'8px',border:'none',background:'linear-gradient(135deg,#d4a017,#8b6914)',color:'#fff',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>Купить за {(prices[t.outcome]*t.amount*1.02).toFixed(1)} $OVEN</button>
+                          <button onClick={() => buyShares(mk.id,t.outcome,shareNum)} disabled={shareNum<=0} style={{flex:1,padding:'8px',borderRadius:'8px',border:'none',background:shareNum>0?'linear-gradient(135deg,#d4a017,#8b6914)':'#333',color:'#fff',fontSize:'13px',fontWeight:700,cursor:shareNum>0?'pointer':'not-allowed'}}>Купить{shareNum>0?` за ${(prices[t.outcome]*shareNum*1.02).toFixed(1)} $OVEN`:''}</button>
                           {(myPos[t.outcome]||0) > 0 && (
-                            <button onClick={() => sellShares(mk.id,t.outcome,Math.min(t.amount,myPos[t.outcome]||0))} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid rgba(255,50,50,0.4)',background:'rgba(255,50,50,0.1)',color:'#f88',fontSize:'13px',cursor:'pointer'}}>Продать {Math.min(t.amount,myPos[t.outcome]||0)}</button>
+                            <button onClick={() => sellShares(mk.id,t.outcome,Math.min(shareNum||0,myPos[t.outcome]||0))} disabled={shareNum<=0} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid rgba(255,50,50,0.4)',background:'rgba(255,50,50,0.1)',color:'#f88',fontSize:'13px',cursor:shareNum>0?'pointer':'not-allowed'}}>Продать {Math.min(shareNum||0,myPos[t.outcome]||0)}</button>
                           )}
                         </div>
                       </div>
