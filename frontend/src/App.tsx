@@ -5,7 +5,7 @@ import { useContract } from './hooks/useContract';
 import { ZODIACS, STAKE_TIERS, SWAP_RATE, STONFI_URL, CONTRACTS } from './constants';
 import './App.css';
 
-const MANIFEST_URL = 'https://oven-ai-horoscope.vercel.app/tonconnect-manifest.json';
+const MANIFEST_URL = 'https://oven-ai-horoscope-six.vercel.app/tonconnect-manifest.json';
 
 const FALLBACK_HORO: Record<string, string> = {
   aries: '♈ Овен: День перемен. Риски оправдаются, если действуешь решительно!',
