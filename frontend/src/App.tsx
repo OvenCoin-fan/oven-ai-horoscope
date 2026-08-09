@@ -31,6 +31,8 @@ const MARKETS = [
   {id:'elon-tweet',emoji:'🐦',title:'Маск упомянет DOGE/TON до 15 августа?',outcomes:['Да','Нет'],hint:'♈ Меркурий в ретрограде.',pool:[100,100]},
 ];
 
+const RATE = 1000; // 1 TON = 1000 $OVEN
+
 function getPrices(pool) {
   const t = pool[0] + pool[1];
   return [pool[0]/t, pool[1]/t];
@@ -39,7 +41,7 @@ function getPrices(pool) {
 function App() {
   const [connected, setConnected] = useState(false);
   const [ovenBal, setOvenBal] = useState(0);
-  const [tonBal] = useState(2.5);
+  const [tonBal, setTonBal] = useState(5.0);
   const [selSign, setSelSign] = useState(null);
   const [horoText, setHoroText] = useState('');
   const [markets, setMarkets] = useState(MARKETS);
@@ -47,10 +49,10 @@ function App() {
   const [error, setError] = useState('');
   const [trade, setTrade] = useState({});
   const [hint, setHint] = useState({});
+  const [mintAmt, setMintAmt] = useState(1);
 
   const connectWallet = () => {
     setConnected(true);
-    setOvenBal(0);
   };
 
   const getHoro = (s) => {
@@ -58,12 +60,20 @@ function App() {
     setHoroText(HOROS[s] || HOROS.aries);
   };
 
+  const doMint = () => {
+    const cost = mintAmt; // TON
+    if (cost > tonBal) { setError('Недостаточно TON!'); return; }
+    setError('');
+    setTonBal(prev => +(prev - cost).toFixed(4));
+    setOvenBal(prev => prev + mintAmt * RATE);
+  };
+
   const buyShares = (mkId, idx, shares) => {
     const mk = markets.find(m => m.id === mkId);
     if (!mk) return;
     const prices = getPrices(mk.pool);
     const cost = prices[idx] * shares * 1.02;
-    if (cost > ovenBal) { setError('Недостаточно $OVEN! Сначала заминти.'); return; }
+    if (cost > ovenBal) { setError('Недостаточно $OVEN! Купи за TON.'); return; }
     setError('');
     const np = [...mk.pool]; np[idx] += shares;
     setMarkets(prev => prev.map(m => m.id === mkId ? {...m, pool: np} : m));
@@ -78,10 +88,6 @@ function App() {
     const np = [...mk.pool]; np[idx] = Math.max(1, np[idx] - shares);
     setMarkets(prev => prev.map(m => m.id === mkId ? {...m, pool: np} : m));
     setPositions(p => ({...p, [mkId]: {...p[mkId], [idx]: held - shares}}));
-  };
-
-  const doMint = () => {
-    setOvenBal(prev => prev + 100);
   };
 
   return (
@@ -129,18 +135,26 @@ function App() {
           <>
             <div className="card">
               <div className="balance-bar" style={{marginBottom:'0'}}>
-                <div><span className="label">🔥 $OVEN</span><span className="amount" style={{marginLeft:'8px'}}>{ovenBal}</span></div>
+                <div><span className="label">🔥 $OVEN</span><span className="amount" style={{marginLeft:'8px'}}>{ovenBal.toLocaleString()}</span></div>
                 <div><span className="label">💎 TON</span><span className="amount" style={{marginLeft:'8px'}}>{tonBal}</span></div>
               </div>
             </div>
 
             <div className="card">
-              <h2>♈ Минт $OVEN</h2>
+              <h2>♈ Купить $OVEN</h2>
               <div style={{marginBottom:'12px',padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'12px'}}>
+                <p style={{fontSize:'13px',color:'#888'}}>💱 Курс: <span style={{color:'#e8e8e8',fontWeight:600}}>1 TON = {RATE.toLocaleString()} $OVEN</span></p>
                 <p style={{fontSize:'13px',color:'#888'}}>🔥 Total Supply: 1,000,000,000 $OVEN</p>
-                <p style={{fontSize:'13px',color:'#888'}}>♈ Держи $OVEN — получай гороскопы</p>
               </div>
-              <button className="mint-btn" onClick={doMint}>🔥 Минт 100 $OVEN</button>
+              <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
+                {[0.5, 1, 2, 5].map(n => (
+                  <button key={n} onClick={() => setMintAmt(n)} style={{flex:1,padding:'8px',borderRadius:'8px',border:mintAmt===n?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:mintAmt===n?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>{n} TON</button>
+                ))}
+              </div>
+              <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px',marginBottom:'12px'}}>
+                <p style={{fontSize:'13px',color:'#888'}}>Получишь: <span style={{color:'#d4a017',fontWeight:700,fontSize:'16px'}}>{(mintAmt * RATE).toLocaleString()} $OVEN</span></p>
+              </div>
+              <button className="mint-btn" onClick={doMint}>💎 Купить за {mintAmt} TON</button>
             </div>
 
             <div className="card">
