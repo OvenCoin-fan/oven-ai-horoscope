@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 const ZODIACS = [
@@ -31,7 +31,13 @@ const MARKETS = [
   {id:'elon-tweet',emoji:'🐦',title:'Маск упомянет DOGE/TON до 15 августа?',outcomes:['Да','Нет'],hint:'♈ Меркурий в ретрограде.',pool:[100,100]},
 ];
 
-const RATE = 1000; // 1 TON = 1000 $OVEN
+const STAKE_TIERS = [
+  {id:'3d',label:'3 дня',days:3,apy:3,emoji:'🥉'},
+  {id:'7d',label:'7 дней',days:7,apy:6,emoji:'🥈'},
+  {id:'30d',label:'30 дней',days:30,apy:10,emoji:'🥇'},
+];
+
+const SWAP_RATE = 1000; // 1 GRAM = 1000 $OVEN
 
 function getPrices(pool) {
   const t = pool[0] + pool[1];
@@ -41,7 +47,7 @@ function getPrices(pool) {
 function App() {
   const [connected, setConnected] = useState(false);
   const [ovenBal, setOvenBal] = useState(0);
-  const [tonBal, setTonBal] = useState(5.0);
+  const [gramBal, setGramBal] = useState(0);
   const [selSign, setSelSign] = useState(null);
   const [horoText, setHoroText] = useState('');
   const [markets, setMarkets] = useState(MARKETS);
@@ -49,23 +55,63 @@ function App() {
   const [error, setError] = useState('');
   const [trade, setTrade] = useState({});
   const [hint, setHint] = useState({});
-  const [mintAmt, setMintAmt] = useState(1);
+  const [swapAmt, setSwapAmt] = useState(1);
+  const [stakes, setStakes] = useState([]);
+  const [stakeAmt, setStakeAmt] = useState('');
+  const [selTier, setSelTier] = useState('7d');
+  const [tab, setTab] = useState('swap');
+  const [now, setNow] = useState(Date.now());
 
-  const connectWallet = () => {
-    setConnected(true);
-  };
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const connectWallet = () => setConnected(true);
 
   const getHoro = (s) => {
     setSelSign(s);
     setHoroText(HOROS[s] || HOROS.aries);
   };
 
-  const doMint = () => {
-    const cost = mintAmt; // TON
-    if (cost > tonBal) { setError('Недостаточно TON!'); return; }
+  // STON.fi swap: GRAM → $OVEN
+  const doSwap = () => {
+    if (swapAmt <= 0) { setError('Укажи сумму'); return; }
+    if (swapAmt > gramBal) { setError('Недостаточно GRAM!'); return; }
     setError('');
-    setTonBal(prev => +(prev - cost).toFixed(4));
-    setOvenBal(prev => prev + mintAmt * RATE);
+    setGramBal(prev => +(prev - swapAmt).toFixed(4));
+    setOvenBal(prev => prev + swapAmt * SWAP_RATE);
+  };
+
+  // Stake $OVEN
+  const doStake = () => {
+    const amt = parseInt(stakeAmt);
+    if (!amt || amt <= 0) { setError('Укажи сумму $OVEN'); return; }
+    if (amt > ovenBal) { setError('Недостаточно $OVEN!'); return; }
+    const tier = STAKE_TIERS.find(t => t.id === selTier);
+    if (!tier) return;
+    setError('');
+    setOvenBal(prev => prev - amt);
+    setStakes(prev => [...prev, {
+      id: Date.now(),
+      amount: amt,
+      tier: tier.id,
+      apy: tier.apy,
+      days: tier.days,
+      startTime: Date.now(),
+      unlockTime: Date.now() + tier.days * 86400000,
+      reward: Math.floor(amt * tier.apy / 100 * tier.days / 365),
+      claimed: false
+    }]);
+    setStakeAmt('');
+  };
+
+  // Claim unlocked stake
+  const doClaim = (stakeId) => {
+    const s = stakes.find(x => x.id === stakeId);
+    if (!s || s.claimed || now < s.unlockTime) return;
+    setOvenBal(prev => prev + s.amount + s.reward);
+    setStakes(prev => prev.map(x => x.id === stakeId ? {...x, claimed: true} : x));
   };
 
   const buyShares = (mkId, idx, shares) => {
@@ -73,7 +119,7 @@ function App() {
     if (!mk) return;
     const prices = getPrices(mk.pool);
     const cost = prices[idx] * shares * 1.02;
-    if (cost > ovenBal) { setError('Недостаточно $OVEN! Купи за TON.'); return; }
+    if (cost > ovenBal) { setError('Недостаточно $OVEN! Купи через STON.fi.'); return; }
     setError('');
     const np = [...mk.pool]; np[idx] += shares;
     setMarkets(prev => prev.map(m => m.id === mkId ? {...m, pool: np} : m));
@@ -90,6 +136,18 @@ function App() {
     setPositions(p => ({...p, [mkId]: {...p[mkId], [idx]: held - shares}}));
   };
 
+  const totalStaked = stakes.filter(s => !s.claimed).reduce((a, s) => a + s.amount, 0);
+  const totalRewards = stakes.filter(s => !s.claimed).reduce((a, s) => a + s.reward, 0);
+
+  const fmtTime = (ms) => {
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (d > 0) return `${d}д ${h}ч`;
+    if (h > 0) return `${h}ч ${m}м`;
+    return `${m}м`;
+  };
+
   return (
     <div className="app">
       <header className="card" style={{textAlign:'center',marginBottom:'8px'}}>
@@ -99,6 +157,7 @@ function App() {
       </header>
 
       <main className="main">
+        {/* Гороскоп */}
         <div className="card">
           <h2>🔮 AI Гороскоп</h2>
           <p style={{color:'#888',fontSize:'13px',marginBottom:'12px'}}>Выбери знак — Mira предскажет день</p>
@@ -117,7 +176,7 @@ function App() {
             <div style={{textAlign:'center',padding:'20px 16px'}}>
               <p style={{fontSize:'48px',marginBottom:'12px'}}>👛</p>
               <h2 style={{marginBottom:'8px'}}>Подключи кошелёк</h2>
-              <p style={{color:'#888',fontSize:'14px',marginBottom:'24px'}}>Ставки и минт в $OVEN. Без кошелька — не играешь.</p>
+              <p style={{color:'#888',fontSize:'14px',marginBottom:'24px'}}>Ставки и стейкинг в $OVEN. Без кошелька — не играешь.</p>
               <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
                 <button onClick={connectWallet} style={{padding:'14px 24px',borderRadius:'12px',border:'1px solid rgba(212,160,23,0.3)',background:'rgba(212,160,23,0.08)',color:'#e8e8e8',fontSize:'15px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'10px'}}>
                   <span style={{fontSize:'20px'}}>💎</span> Tonkeeper
@@ -133,30 +192,138 @@ function App() {
           </div>
         ) : (
           <>
+            {/* Баланс */}
             <div className="card">
               <div className="balance-bar" style={{marginBottom:'0'}}>
                 <div><span className="label">🔥 $OVEN</span><span className="amount" style={{marginLeft:'8px'}}>{ovenBal.toLocaleString()}</span></div>
-                <div><span className="label">💎 TON</span><span className="amount" style={{marginLeft:'8px'}}>{tonBal}</span></div>
+                <div><span className="label">🪙 GRAM</span><span className="amount" style={{marginLeft:'8px'}}>{gramBal}</span></div>
               </div>
+              {totalStaked > 0 && (
+                <div style={{marginTop:'8px',padding:'8px 16px',background:'rgba(76,175,80,0.08)',borderRadius:'8px',border:'1px solid rgba(76,175,80,0.2)'}}>
+                  <span style={{fontSize:'12px',color:'#888'}}>🔒 В стейке: </span>
+                  <span style={{fontSize:'12px',color:'#4f4',fontWeight:600}}>{totalStaked.toLocaleString()} $OVEN</span>
+                  <span style={{fontSize:'12px',color:'#888',marginLeft:'12px'}}>💰 Награда: </span>
+                  <span style={{fontSize:'12px',color:'#d4a017',fontWeight:600}}>{totalRewards.toLocaleString()} $OVEN</span>
+                </div>
+              )}
             </div>
 
+            {/* Табы: Свап / Стейкинг */}
             <div className="card">
-              <h2>♈ Купить $OVEN</h2>
-              <div style={{marginBottom:'12px',padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'12px'}}>
-                <p style={{fontSize:'13px',color:'#888'}}>💱 Курс: <span style={{color:'#e8e8e8',fontWeight:600}}>1 TON = {RATE.toLocaleString()} $OVEN</span></p>
-                <p style={{fontSize:'13px',color:'#888'}}>🔥 Total Supply: 1,000,000,000 $OVEN</p>
+              <div style={{display:'flex',gap:'6px',marginBottom:'16px'}}>
+                <button onClick={() => setTab('swap')} style={{flex:1,padding:'10px',borderRadius:'10px',border:tab==='swap'?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:tab==='swap'?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'14px',fontWeight:tab==='swap'?700:400,cursor:'pointer'}}>💱 Купить $OVEN</button>
+                <button onClick={() => setTab('stake')} style={{flex:1,padding:'10px',borderRadius:'10px',border:tab==='stake'?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:tab==='stake'?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'14px',fontWeight:tab==='stake'?700:400,cursor:'pointer'}}>🔒 Стейкинг</button>
               </div>
-              <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
-                {[0.5, 1, 2, 5].map(n => (
-                  <button key={n} onClick={() => setMintAmt(n)} style={{flex:1,padding:'8px',borderRadius:'8px',border:mintAmt===n?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:mintAmt===n?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>{n} TON</button>
-                ))}
-              </div>
-              <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px',marginBottom:'12px'}}>
-                <p style={{fontSize:'13px',color:'#888'}}>Получишь: <span style={{color:'#d4a017',fontWeight:700,fontSize:'16px'}}>{(mintAmt * RATE).toLocaleString()} $OVEN</span></p>
-              </div>
-              <button className="mint-btn" onClick={doMint}>💎 Купить за {mintAmt} TON</button>
+
+              {tab === 'swap' && (
+                <>
+                  <div style={{marginBottom:'12px',padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'12px'}}>
+                    <p style={{fontSize:'13px',color:'#888'}}>💱 STON.fi: <span style={{color:'#e8e8e8',fontWeight:600}}>1 GRAM = {SWAP_RATE.toLocaleString()} $OVEN</span></p>
+                    <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Обмен через STON.fi DEX. В продакшене — реальный swap.</p>
+                  </div>
+                  <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
+                    {[0.5, 1, 2, 5].map(n => (
+                      <button key={n} onClick={() => setSwapAmt(n)} style={{flex:1,padding:'8px',borderRadius:'8px',border:swapAmt===n?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:swapAmt===n?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'13px',cursor:'pointer'}}>{n}</button>
+                    ))}
+                  </div>
+                  <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px',marginBottom:'12px'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:'14px',color:'#888'}}>Отдаёшь:</span>
+                      <span style={{fontSize:'14px',color:'#e8e8e8',fontWeight:600}}>{swapAmt} GRAM</span>
+                    </div>
+                    <p style={{textAlign:'center',fontSize:'18px',margin:'6px 0'}}>⬇️</p>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:'14px',color:'#888'}}>Получаешь:</span>
+                      <span style={{fontSize:'16px',color:'#d4a017',fontWeight:700}}>{(swapAmt * SWAP_RATE).toLocaleString()} $OVEN</span>
+                    </div>
+                  </div>
+                  <button className="mint-btn" onClick={doSwap}>💱 Обменять через STON.fi</button>
+                </>
+              )}
+
+              {tab === 'stake' && (
+                <>
+                  <div style={{marginBottom:'12px',padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'12px'}}>
+                    <p style={{fontSize:'13px',color:'#888'}}>🔒 Заблокируй $OVEN и получай процент</p>
+                    <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Награды выплачиваются после разблокировки</p>
+                  </div>
+
+                  {/* Выбор тарифа */}
+                  <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
+                    {STAKE_TIERS.map(tier => (
+                      <button key={tier.id} onClick={() => setSelTier(tier.id)} style={{flex:1,padding:'10px 6px',borderRadius:'10px',border:selTier===tier.id?'2px solid #d4a017':'1px solid rgba(212,160,23,0.25)',background:selTier===tier.id?'rgba(212,160,23,0.15)':'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'12px',cursor:'pointer',textAlign:'center'}}>
+                        <span style={{fontSize:'20px',display:'block',marginBottom:'4px'}}>{tier.emoji}</span>
+                        <span style={{fontWeight:700}}>{tier.label}</span>
+                        <span style={{display:'block',color:'#d4a017',fontWeight:700,marginTop:'2px'}}>{tier.apy}% годовых</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Сумма */}
+                  <input type="number" placeholder="Сумма $OVEN" value={stakeAmt} onChange={e => setStakeAmt(e.target.value)} style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid rgba(212,160,23,0.25)',background:'rgba(212,160,23,0.04)',color:'#e8e8e8',fontSize:'15px',marginBottom:'12px',boxSizing:'border-box',outline:'none'}} />
+
+                  {/* Предпросмотр */}
+                  {stakeAmt && parseInt(stakeAmt) > 0 && (() => {
+                    const tier = STAKE_TIERS.find(t => t.id === selTier);
+                    const amt = parseInt(stakeAmt);
+                    const reward = Math.floor(amt * tier.apy / 100 * tier.days / 365);
+                    return (
+                      <div style={{padding:'10px',background:'rgba(212,160,23,0.06)',borderRadius:'8px',marginBottom:'12px'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                          <span style={{fontSize:'13px',color:'#888'}}>Блокировка:</span>
+                          <span style={{fontSize:'13px',color:'#e8e8e8'}}>{tier.emoji} {tier.label}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                          <span style={{fontSize:'13px',color:'#888'}}>Стейкаешь:</span>
+                          <span style={{fontSize:'13px',color:'#e8e8e8'}}>{amt.toLocaleString()} $OVEN</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                          <span style={{fontSize:'13px',color:'#888'}}>Награда:</span>
+                          <span style={{fontSize:'14px',color:'#d4a017',fontWeight:700}}>+{reward.toLocaleString()} $OVEN</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between'}}>
+                          <span style={{fontSize:'13px',color:'#888'}}>Итого после разблокировки:</span>
+                          <span style={{fontSize:'14px',color:'#4f4',fontWeight:700}}>{(amt + reward).toLocaleString()} $OVEN</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <button className="mint-btn" onClick={doStake}>🔒 Заблокировать $OVEN</button>
+
+                  {/* Активные стейки */}
+                  {stakes.filter(s => !s.claimed).length > 0 && (
+                    <div style={{marginTop:'16px'}}>
+                      <h3 style={{fontSize:'15px',color:'#e8e8e8',marginBottom:'10px'}}>📋 Активные стейки</h3>
+                      {stakes.filter(s => !s.claimed).map(s => {
+                        const tier = STAKE_TIERS.find(t => t.id === s.tier);
+                        const left = s.unlockTime - now;
+                        const unlocked = left <= 0;
+                        return (
+                          <div key={s.id} style={{padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'10px',border:'1px solid rgba(212,160,23,0.12)',marginBottom:'8px'}}>
+                            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                              <span style={{fontSize:'13px',color:'#e8e8e8'}}>{tier.emoji} {tier.label} • {s.apy}% APY</span>
+                              <span style={{fontSize:'13px',color:'#d4a017',fontWeight:600}}>{s.amount.toLocaleString()} $OVEN</span>
+                            </div>
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                              <span style={{fontSize:'12px',color:unlocked?'#4f4':'#888'}}>
+                                {unlocked ? '✅ Разблокировано' : `⏳ Осталось: ${fmtTime(left)}`}
+                              </span>
+                              <span style={{fontSize:'12px',color:'#d4a017'}}>+{s.reward.toLocaleString()} $OVEN</span>
+                            </div>
+                            {unlocked && (
+                              <button onClick={() => doClaim(s.id)} style={{width:'100%',marginTop:'8px',padding:'8px',borderRadius:'8px',border:'none',background:'linear-gradient(135deg,#4CAF50,#2E7D32)',color:'#fff',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>💰 Забрать {s.amount + s.reward} $OVEN</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
+            {/* Predictions */}
             <div className="card">
               <h2>🎯 OVEN Predictions</h2>
               <p style={{color:'#888',fontSize:'13px',marginBottom:'12px'}}>Покупай акции исхода за $OVEN. Угадал — каждая акция = 1 $OVEN.</p>
