@@ -1,50 +1,84 @@
-const EVENTS = [
+const MARKETS = [
   {
     id: 'btc-65k',
     emoji: '📈',
-    title: 'BTC закроется выше $65,000 в пятницу?',
-    options: [{ label: 'Да', odds: 1.7 }, { label: 'Нет', odds: 2.2 }],
+    title: 'BTC выше $65,000 в пятницу?',
+    outcomes: ['Да', 'Нет'],
     hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит.',
+    pool: [130, 70],
     category: 'crypto'
   },
   {
     id: 'ton-top10',
     emoji: '💎',
-    title: 'TON войдёт в топ-10 криптовалют к сентябрю?',
-    options: [{ label: 'Да', odds: 3.5 }, { label: 'Нет', odds: 1.3 }],
-    hint: '♈ Юпитер расширяет границы, но конкуренция высока.',
+    title: 'TON в топ-10 к сентябрю?',
+    outcomes: ['Да', 'Нет'],
+    hint: '♈ Юпитер расширяет границы. Но конкуренция жёсткая.',
+    pool: [60, 140],
     category: 'crypto'
   },
   {
     id: 'elon-tweet',
     emoji: '🐦',
-    title: 'Илон Маск упомянет DOGE или TON до 15 августа?',
-    options: [{ label: 'Да', odds: 2.0 }, { label: 'Нет', odds: 1.8 }],
+    title: 'Маск упомянет DOGE/TON до 15 августа?',
+    outcomes: ['Да', 'Нет'],
     hint: '♈ Меркурий в ретрограде — неожиданные сообщения.',
+    pool: [100, 100],
     category: 'fun'
   }
 ];
 
+function getPrices(pool: number[]): number[] {
+  const total = pool.reduce((a, b) => a + b, 0);
+  return pool.map(p => p / total);
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
-    return res.status(200).json({ events: EVENTS, houseEdge: 0.10 });
+    const marketsWithPrices = MARKETS.map(m => ({
+      ...m,
+      prices: getPrices(m.pool)
+    }));
+    return res.status(200).json({ markets: marketsWithPrices, fee: 0.02 });
   }
   if (req.method === 'POST') {
-    const { eventId, option, stake, wallet } = req.body;
-    if (!eventId || option === undefined || !stake) {
+    const { marketId, outcome, shares, wallet, action } = req.body;
+    if (!marketId || outcome === undefined || !shares) {
       return res.status(400).json({ error: 'Missing fields' });
     }
-    const ev = EVENTS.find(e => e.id === eventId);
-    if (!ev) return res.status(404).json({ error: 'Event not found' });
-    const grossWin = stake * ev.options[option].odds;
-    const netWin = Math.round(grossWin * 0.9);
-    return res.status(200).json({
-      success: true,
-      bet: { eventId, option, stake, wallet: wallet || 'anonymous' },
-      potentialWin: netWin,
-      houseEdge: '10%',
-      message: `Ставка ${stake} $OVEN принята! Возможный выигрыш: ${netWin} $OVEN`
-    });
+    const mk = MARKETS.find(m => m.id === marketId);
+    if (!mk) return res.status(404).json({ error: 'Market not found' });
+    const prices = getPrices(mk.pool);
+    const price = prices[outcome];
+    const fee = 0.02;
+    if (action === 'buy') {
+      const cost = price * shares * (1 + fee);
+      return res.status(200).json({
+        success: true,
+        action: 'buy',
+        marketId,
+        outcome,
+        shares,
+        pricePerShare: Math.round(price * 100) / 100,
+        totalCost: Math.round(cost * 100) / 100,
+        potentialWin: shares,
+        fee: `${fee * 100}%`
+      });
+    }
+    if (action === 'sell') {
+      const revenue = price * shares * (1 - fee);
+      return res.status(200).json({
+        success: true,
+        action: 'sell',
+        marketId,
+        outcome,
+        shares,
+        pricePerShare: Math.round(price * 100) / 100,
+        totalRevenue: Math.round(revenue * 100) / 100,
+        fee: `${fee * 100}%`
+      });
+    }
+    return res.status(400).json({ error: 'Invalid action' });
   }
   return res.status(405).json({ error: 'Method not allowed' });
 }
