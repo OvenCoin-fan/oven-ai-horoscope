@@ -38,6 +38,7 @@ const STAKE_TIERS = [
 ];
 
 const SWAP_RATE = 1000;
+const STONFI_URL = 'https://app.ston.fi/swap';
 
 const inputStyle = {
   width: '100%',
@@ -95,14 +96,8 @@ function App() {
   const connectWallet = () => setConnected(true);
   const getHoro = (s: string) => { setSelSign(s); setHoroText(HOROS[s] || HOROS.aries); };
 
-  const doSwap = () => {
-    const amt = parseFloat(swapAmt);
-    if (!amt || amt <= 0) { setError('Укажи сумму GRAM'); return; }
-    if (amt > gramBal) { setError('Недостаточно GRAM!'); return; }
-    setError('');
-    setGramBal(prev => +(prev - amt).toFixed(4));
-    setOvenBal(prev => prev + Math.floor(amt * SWAP_RATE));
-    setSwapAmt('');
+  const openStonFi = () => {
+    window.open(STONFI_URL, '_blank');
   };
 
   const doStake = () => {
@@ -238,8 +233,8 @@ function App() {
               {tab === 'swap' && (
                 <>
                   <div style={{marginBottom:'12px',padding:'12px',background:'rgba(212,160,23,0.04)',borderRadius:'12px'}}>
-                    <p style={{fontSize:'13px',color:'#888'}}>💱 STON.fi: <span style={{color:'#e8e8e8',fontWeight:600}}>1 GRAM = {SWAP_RATE.toLocaleString()} $OVEN</span></p>
-                    <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Обмен через STON.fi DEX</p>
+                    <p style={{fontSize:'13px',color:'#888'}}>💱 Курс: <span style={{color:'#e8e8e8',fontWeight:600}}>1 GRAM = {SWAP_RATE.toLocaleString()} $OVEN</span></p>
+                    <p style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>Обмен на STON.fi — крупнейшей DEX на TON</p>
                   </div>
 
                   <div style={{padding:'12px',background:'rgba(212,160,23,0.06)',borderRadius:'12px',marginBottom:'12px'}}>
@@ -257,7 +252,11 @@ function App() {
                     </div>
                   </div>
 
-                  <button className="mint-btn" onClick={doSwap}>💱 Обменять через STON.fi</button>
+                  <button className="mint-btn" onClick={openStonFi} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                    <span style={{fontSize:'18px'}}>💱</span> Обменять на STON.fi
+                  </button>
+
+                  <p style={{textAlign:'center',fontSize:'11px',color:'#666',marginTop:'8px'}}>Нажми — откроется STON.fi в новой вкладке</p>
                 </>
               )}
 
