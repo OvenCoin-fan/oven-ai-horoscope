@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ZODIACS, STAKE_TIERS, SWAP_RATE, STONFI_URL, CONTRACTS } from './constants';
-import { useContract } from './hooks/useContract';
 import './App.css';
 
 const MANIFEST_URL = 'https://oven-ai-horoscope-six.vercel.app/tonconnect-manifest.json';
@@ -29,6 +28,55 @@ function fmtTime(ms: number) {
   return m + 'м';
 }
 
+// Lazy blockchain reader - only loads when wallet connects
+let _tonClient: any = null;
+async function getTonClient() {
+  if (!_tonClient) {
+    const { TonClient } = await import('@ton/ton');
+    const { TONCENTER_API } = await import('./constants');
+    _tonClient = new TonClient({ endpoint: TONCENTER_API });
+  }
+  return _tonClient;
+}
+
+async function fetchBalances(address: string) {
+  try {
+    const { Address, beginCell } = await import('@ton/core');
+    const { CONTRACTS } = await import('./constants');
+    const client = await getTonClient();
+
+    // TON balance
+    const addr = Address.parse(address);
+    const tonBal = Number(await client.getBalance(addr)) / 1e9;
+
+    // $OVEN jetton balance
+    let ovenBal = 0;
+    try {
+      const minterAddr = Address.parse(CONTRACTS.ovenJettonMinter);
+      const result = await client.runMethod(minterAddr, 'get_wallet_address', [
+        { type: 'slice', cell: beginCell().storeAddress(addr).endCell() }
+      ]);
+      const jettonWalletAddr = result.stack.readAddress();
+      if (jettonWalletAddr) {
+        const jettonResult = await client.runMethod(jettonWalletAddr, 'get_wallet_data');
+        ovenBal = Number(jettonResult.stack.readBigNumber()) / 1e9;
+      }
+    } catch {}
+
+    // Supply
+    let supply = '0';
+    try {
+      const minterAddr = Address.parse(CONTRACTS.ovenJettonMinter);
+      const result = await client.runMethod(minterAddr, 'getTotalSupply');
+      supply = result.stack.readBigNumber().toString();
+    } catch {}
+
+    return { tonBal: Math.round(tonBal * 1000) / 1000, ovenBal: Math.round(ovenBal * 100) / 100, supply };
+  } catch {
+    return { tonBal: 0, ovenBal: 0, supply: '0' };
+  }
+}
+
 export default function App() {
   const [tonUI, setTonUI] = useState<any>(null);
   const [connected, setConnected] = useState(false);
@@ -36,8 +84,6 @@ export default function App() {
   const [friendlyAddress, setFriendlyAddress] = useState('');
   const [walletError, setWalletError] = useState('');
   const [connecting, setConnecting] = useState(false);
-
-  const { getOvenSupply, getTonBalance, getOvenBalance } = useContract();
 
   const [ovenBal, setOvenBal] = useState(0);
   const [tonBal, setTonBal] = useState(0);
@@ -58,12 +104,13 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
-  // Read real balances when wallet connects
   useEffect(() => {
     if (connected && rawAddress) {
-      getOvenSupply().then(s => s && setSupply(s.toString()));
-      getTonBalance(rawAddress).then(b => setTonBal(Math.round(b * 1000) / 1000));
-      getOvenBalance(rawAddress).then(b => setOvenBal(Math.round(b * 100) / 100));
+      fetchBalances(rawAddress).then(b => {
+        setTonBal(b.tonBal);
+        setOvenBal(b.ovenBal);
+        setSupply(b.supply);
+      });
     }
   }, [connected, rawAddress]);
 
