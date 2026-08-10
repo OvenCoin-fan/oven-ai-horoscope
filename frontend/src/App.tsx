@@ -31,9 +31,11 @@ function fmtTime(ms: number) {
   return m + 'м';
 }
 
-function AppInner() {
-  const { connected, friendlyAddress, connect, disconnect } = useTonConnect();
-  const { getOvenSupply } = useContract();
+function AppInner({ walletAvailable = true }: { walletAvailable?: boolean }) {
+  const tonConnect = walletAvailable ? useTonConnect() : { connected: false, friendlyAddress: '', connect: () => alert('TON Connect не загрузился. Открой в Tonkeeper или Chrome.'), disconnect: () => {} };
+  const { connected, friendlyAddress, connect, disconnect } = tonConnect;
+  const contractHook = walletAvailable ? useContract() : { getOvenSupply: async () => null };
+  const { getOvenSupply } = contractHook;
 
   const [ovenBal, setOvenBal] = useState(0);
   const [selSign, setSelSign] = useState<string | null>(null);
@@ -208,9 +210,21 @@ function AppInner() {
 }
 
 export default function App() {
-  return (
-    <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
-      <AppInner />
-    </TonConnectUIProvider>
-  );
+  const [tonFailed, setTonFailed] = useState(false);
+
+  if (tonFailed) {
+    return <AppInner walletAvailable={false} />;
+  }
+
+  try {
+    return (
+      <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
+        <AppInner walletAvailable={true} />
+      </TonConnectUIProvider>
+    );
+  } catch (e) {
+    console.error('[TON Connect] Provider crashed:', e);
+    setTonFailed(true);
+    return <AppInner walletAvailable={false} />;
+  }
 }
