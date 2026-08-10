@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>$OVEN AI Horoscope</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♈</text></svg>">
+  <script>
+  if(!Array.prototype.at){Array.prototype.at=function(n){var l=this.length,i=n>=0?n:l+n;return i>=0&&i<l?this[i]:undefined};}
+  if(!String.prototype.at){String.prototype.at=function(n){var l=this.length,i=n>=0?n:l+i;return i>=0&&i<l?this[i]:undefined};}
+  if(!Object.hasOwn){Object.hasOwn=function(o,p){return Object.prototype.hasOwnProperty.call(o,p)};}
+  if(!TypedArray.prototype.at){TypedArray.prototype.at=function(n){var l=this.length,i=n>=0?n:l+n;return i>=0&&i<l?this[i]:undefined};}
+  </script>
   <style>body{margin:0;background:#0d0d12;font-family:-apple-system,BlinkMacSystemFont,sans-serif;overflow-x:hidden}</style>
 </head>
 <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
