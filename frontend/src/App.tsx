@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TonConnectUIProvider } from '@tonconnect/ui-react';
-import { useTonConnect } from './hooks/useTonConnect';
-import { useContract } from './hooks/useContract';
 import { ZODIACS, STAKE_TIERS, SWAP_RATE, STONFI_URL, CONTRACTS } from './constants';
 import './App.css';
 
@@ -31,9 +28,12 @@ function fmtTime(ms: number) {
   return m + 'м';
 }
 
-function AppInner() {
-  const { connected, friendlyAddress, connect, disconnect } = useTonConnect();
-  const { getOvenSupply } = useContract();
+export default function App() {
+  const [tonUI, setTonUI] = useState<any>(null);
+  const [connected, setConnected] = useState(false);
+  const [friendlyAddress, setFriendlyAddress] = useState('');
+  const [walletError, setWalletError] = useState('');
+  const [connecting, setConnecting] = useState(false);
 
   const [ovenBal, setOvenBal] = useState(0);
   const [selSign, setSelSign] = useState<string | null>(null);
@@ -53,12 +53,42 @@ function AppInner() {
     return () => clearInterval(iv);
   }, []);
 
-  useEffect(() => {
-    if (connected) {
-      getOvenSupply().then(s => s && setSupply(s.toString()));
-      setOvenBal(10000);
+  const connect = useCallback(async () => {
+    setConnecting(true);
+    setWalletError('');
+    try {
+      if (!tonUI) {
+        const { TonConnectUI } = await import('@tonconnect/ui-react');
+        const ui = new TonConnectUI({ manifestUrl: MANIFEST_URL });
+        ui.onStatusChange(wallet => {
+          if (wallet) {
+            setConnected(true);
+            setFriendlyAddress(wallet.account.address);
+            setOvenBal(10000);
+          } else {
+            setConnected(false);
+            setFriendlyAddress('');
+          }
+        });
+        setTonUI(ui);
+        await ui.connectWallet();
+      } else {
+        await tonUI.connectWallet();
+      }
+    } catch (e: any) {
+      console.error('[TON Connect]', e);
+      setWalletError(e?.message || 'Не удалось подключить кошелёк. Попробуй открыть в Tonkeeper.');
     }
-  }, [connected]);
+    setConnecting(false);
+  }, [tonUI]);
+
+  const disconnect = useCallback(async () => {
+    if (tonUI) {
+      try { await tonUI.disconnect(); } catch {}
+    }
+    setConnected(false);
+    setFriendlyAddress('');
+  }, [tonUI]);
 
   const getHoro = useCallback(async (sign: string) => {
     setSelSign(sign);
@@ -127,9 +157,10 @@ function AppInner() {
               <p style={{ fontSize: '48px', marginBottom: '12px' }}>👛</p>
               <h2 style={{ marginBottom: '8px' }}>Подключи кошелёк</h2>
               <p style={{ color: '#888', fontSize: '14px', marginBottom: '24px' }}>Стейкинг и свап в $OVEN</p>
-              <button className="mint-btn" onClick={connect} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>💎</span> Подключить TON Wallet
+              <button className="mint-btn" onClick={connect} disabled={connecting} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: connecting ? 0.6 : 1 }}>
+                <span style={{ fontSize: '18px' }}>💎</span> {connecting ? 'Подключение...' : 'Подключить TON Wallet'}
               </button>
+              {walletError && <p style={{ color: '#ff6b6b', fontSize: '13px', marginTop: '12px' }}>{walletError}</p>}
             </div>
           </div>
         ) : (
@@ -204,13 +235,5 @@ function AppInner() {
         )}
       </main>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
-      <AppInner />
-    </TonConnectUIProvider>
   );
 }
