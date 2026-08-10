@@ -22,17 +22,6 @@ const FALLBACK_HORO: Record<string, string> = {
   pisces: '♓ Рыбы: Интуиция на пике. Доверься потоку.',
 };
 
-const MARKETS = [
-  { id: 'btc-150k', emoji: '📈', title: 'BTC выше $150,000 к сентябрю?', outcomes: ['Да', 'Нет'], hint: '♈ Марс в Овне — к росту. Но Сатурн тормозит.', pool: [130, 70] },
-  { id: 'ton-top10', emoji: '💎', title: 'TON в топ-10 к октябрю?', outcomes: ['Да', 'Нет'], hint: '♈ Юпитер расширяет границы.', pool: [60, 140] },
-  { id: 'eth-5k', emoji: '🔮', title: 'ETH выше $5,000 к ноябрю?', outcomes: ['Да', 'Нет'], hint: '♈ Венера в доме финансов.', pool: [100, 100] },
-];
-
-function getPrices(pool: number[]) {
-  const t = pool[0] + pool[1];
-  return [pool[0] / t, pool[1] / t];
-}
-
 function fmtTime(ms: number) {
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
@@ -44,18 +33,13 @@ function fmtTime(ms: number) {
 
 function AppInner() {
   const { connected, friendlyAddress, connect, disconnect } = useTonConnect();
-  const { getOvenSupply, getMarketCount } = useContract();
+  const { getOvenSupply } = useContract();
 
   const [ovenBal, setOvenBal] = useState(0);
-  const [gramBal, setGramBal] = useState(0);
   const [selSign, setSelSign] = useState<string | null>(null);
   const [horoText, setHoroText] = useState('');
   const [horoLoading, setHoroLoading] = useState(false);
-  const [markets, setMarkets] = useState(MARKETS);
-  const [positions, setPositions] = useState<Record<string, Record<number, number>>>({});
   const [error, setError] = useState('');
-  const [trade, setTrade] = useState<Record<string, { outcome: number; amount: string }>>({});
-  const [hint, setHint] = useState<Record<string, boolean>>({});
   const [swapAmt, setSwapAmt] = useState('');
   const [stakes, setStakes] = useState<any[]>([]);
   const [stakeAmt, setStakeAmt] = useState('');
@@ -63,7 +47,6 @@ function AppInner() {
   const [tab, setTab] = useState('swap');
   const [now, setNow] = useState(Date.now());
   const [supply, setSupply] = useState('0');
-  const [marketCnt, setMarketCnt] = useState('0');
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 60000);
@@ -73,9 +56,7 @@ function AppInner() {
   useEffect(() => {
     if (connected) {
       getOvenSupply().then(s => s && setSupply(s.toString()));
-      getMarketCount().then(c => c && setMarketCnt(c.toString()));
       setOvenBal(10000);
-      setGramBal(5);
     }
   }, [connected]);
 
@@ -113,29 +94,6 @@ function AppInner() {
     setStakes(prev => prev.map(x => x.id === stakeId ? { ...x, claimed: true } : x));
   };
 
-  const buyShares = (mkId: string, idx: number, shares: number) => {
-    const mk = markets.find(m => m.id === mkId);
-    if (!mk) return;
-    const prices = getPrices(mk.pool);
-    const cost = prices[idx] * shares * 1.02;
-    if (cost > ovenBal) { setError('Недостаточно $OVEN!'); return; }
-    setError('');
-    const np = [...mk.pool]; np[idx] += shares;
-    setMarkets(prev => prev.map(m => m.id === mkId ? { ...m, pool: np } : m));
-    setPositions(p => ({ ...p, [mkId]: { ...p[mkId], [idx]: (p[mkId]?.[idx] || 0) + shares } }));
-    setTrade(prev => ({ ...prev, [mkId]: { ...prev[mkId], amount: '' } }));
-  };
-
-  const sellShares = (mkId: string, idx: number, shares: number) => {
-    const held = positions[mkId]?.[idx] || 0;
-    if (shares > held) return;
-    const mk = markets.find(m => m.id === mkId);
-    if (!mk) return;
-    const np = [...mk.pool]; np[idx] = Math.max(1, np[idx] - shares);
-    setMarkets(prev => prev.map(m => m.id === mkId ? { ...m, pool: np } : m));
-    setPositions(p => ({ ...p, [mkId]: { ...p[mkId], [idx]: held - shares } }));
-  };
-
   const totalStaked = stakes.filter(s => !s.claimed).reduce((a, s) => a + s.amount, 0);
   const totalRewards = stakes.filter(s => !s.claimed).reduce((a, s) => a + s.reward, 0);
   const swapNum = parseFloat(swapAmt) || 0;
@@ -168,7 +126,7 @@ function AppInner() {
             <div style={{ textAlign: 'center', padding: '20px 16px' }}>
               <p style={{ fontSize: '48px', marginBottom: '12px' }}>👛</p>
               <h2 style={{ marginBottom: '8px' }}>Подключи кошелёк</h2>
-              <p style={{ color: '#888', fontSize: '14px', marginBottom: '24px' }}>Ставки и стейкинг в $OVEN</p>
+              <p style={{ color: '#888', fontSize: '14px', marginBottom: '24px' }}>Стейкинг и свап в $OVEN</p>
               <button className="mint-btn" onClick={connect} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '18px' }}>💎</span> Подключить TON Wallet
               </button>
@@ -179,173 +137,72 @@ function AppInner() {
             <div className="card">
               <div className="balance-bar" style={{ marginBottom: '0' }}>
                 <div><span className="label">🔥 $OVEN</span><span className="amount" style={{ marginLeft: '8px' }}>{ovenBal.toLocaleString()}</span></div>
-                <div><span className="label">🪙 TON</span><span className="amount" style={{ marginLeft: '8px' }}>{gramBal}</span></div>
+                <div><span className="label">🪙 TON</span><span className="amount" style={{ marginLeft: '8px' }}>5.00</span></div>
               </div>
-              {totalStaked > 0 && (
-                <div style={{ marginTop: '8px', padding: '8px 16px', background: 'rgba(76,175,80,0.08)', borderRadius: '8px', border: '1px solid rgba(76,175,80,0.2)' }}>
-                  <span style={{ fontSize: '12px', color: '#888' }}>🔒 В стейке: </span>
-                  <span style={{ fontSize: '12px', color: '#4f4', fontWeight: 600 }}>{totalStaked.toLocaleString()} $OVEN</span>
-                  <span style={{ fontSize: '12px', color: '#888', marginLeft: '12px' }}>💰 Награда: </span>
-                  <span style={{ fontSize: '12px', color: '#d4a017', fontWeight: 600 }}>{totalRewards.toLocaleString()} $OVEN</span>
-                </div>
-              )}
-              <div style={{ marginTop: '8px', padding: '8px 16px', background: 'rgba(212,160,23,0.04)', borderRadius: '8px', fontSize: '11px', color: '#666' }}>
-                <p>📦 Supply: {Number(supply).toLocaleString()} $OVEN | 🎯 Markets: {marketCnt}</p>
-                <p style={{ marginTop: '4px', fontSize: '10px' }}>👤 {friendlyAddress?.slice(0, 6)}...{friendlyAddress?.slice(-4)}</p>
-              </div>
+              <p style={{ marginTop: '4px' }}>📦 Supply: {Number(supply).toLocaleString()} $OVEN</p>
             </div>
 
             <div className="card">
-              <div className="tab-bar">
-                <button onClick={() => setTab('swap')} className={'tab-btn' + (tab === 'swap' ? ' active' : '')}>💱 Купить $OVEN</button>
-                <button onClick={() => setTab('stake')} className={'tab-btn' + (tab === 'stake' ? ' active' : '')}>🔒 Стейкинг</button>
+              <div className="tabs">
+                <button className={'tab' + (tab === 'swap' ? ' active' : '')} onClick={() => setTab('swap')}>🔄 Свап</button>
+                <button className={'tab' + (tab === 'stake' ? ' active' : '')} onClick={() => setTab('stake')}>🥩 Стейк</button>
               </div>
 
               {tab === 'swap' && (
-                <>
-                  <div style={{ marginBottom: '12px', padding: '12px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '13px', color: '#888' }}>💱 Курс: <span style={{ color: '#e8e8e8', fontWeight: 600 }}>1 TON = {SWAP_RATE.toLocaleString()} $OVEN</span></p>
-                    <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>Обмен на STON.fi</p>
+                <div className="tab-content">
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
+                    <input type="number" placeholder="TON → $OVEN" value={swapAmt} onChange={e => setSwapAmt(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #333', background: '#1a1a2e', color: '#fff', fontSize: '16px' }} />
+                    <span style={{ color: '#888', fontSize: '14px' }}>→ {Math.floor(swapNum * SWAP_RATE).toLocaleString()} $OVEN</span>
                   </div>
-                  <div style={{ padding: '12px', background: 'rgba(212,160,23,0.06)', borderRadius: '12px', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '13px', color: '#888' }}>Отдаёшь:</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input type="number" placeholder="0" value={swapAmt} onChange={e => setSwapAmt(e.target.value)} min="0" step="any" className="input" style={{ width: '120px', padding: '8px 12px', textAlign: 'right' }} />
-                        <span style={{ fontSize: '14px', color: '#e8e8e8', fontWeight: 600 }}>TON</span>
-                      </div>
-                    </div>
-                    <p style={{ textAlign: 'center', fontSize: '18px', margin: '4px 0' }}>⬇️</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', color: '#888' }}>Получаешь:</span>
-                      <span style={{ fontSize: '16px', color: '#d4a017', fontWeight: 700 }}>{swapNum > 0 ? Math.floor(swapNum * SWAP_RATE).toLocaleString() : '0'} $OVEN</span>
-                    </div>
-                  </div>
-                  <button className="mint-btn" onClick={openStonFi} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '18px' }}>💱</span> Обменять на STON.fi
-                  </button>
-                </>
+                  <button className="mint-btn" onClick={openStonFi} style={{ width: '100%' }}>Свапнуть на STON.fi 💎</button>
+                </div>
               )}
 
               {tab === 'stake' && (
-                <>
-                  <div style={{ marginBottom: '12px', padding: '12px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '13px', color: '#888' }}>🔒 Заблокируй $OVEN и получай процент</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                    {STAKE_TIERS.map(tier => (
-                      <button key={tier.id} onClick={() => setSelTier(tier.id)} style={{ flex: 1, padding: '10px 6px', borderRadius: '10px', border: selTier === tier.id ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)', background: selTier === tier.id ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)', color: '#e8e8e8', fontSize: '12px', cursor: 'pointer', textAlign: 'center' }}>
-                        <span style={{ fontSize: '20px', display: 'block', marginBottom: '4px' }}>{tier.emoji}</span>
-                        <span style={{ fontWeight: 700 }}>{tier.label}</span>
-                        <span style={{ display: 'block', color: '#d4a017', fontWeight: 700, marginTop: '2px' }}>{tier.apy}%</span>
+                <div className="tab-content">
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                    {STAKE_TIERS.map(t => (
+                      <button key={t.id} className={'tier-btn' + (selTier === t.id ? ' active' : '')} onClick={() => setSelTier(t.id)}>
+                        {t.emoji} {t.label} <span style={{ color: '#d4a017' }}>{t.apy}% APY</span>
                       </button>
                     ))}
                   </div>
-                  <input type="number" placeholder="Сумма $OVEN" value={stakeAmt} onChange={e => setStakeAmt(e.target.value)} className="input" />
-                  {stakeAmt && parseInt(stakeAmt) > 0 && (() => {
-                    const tier = STAKE_TIERS.find(t => t.id === selTier)!;
-                    const amt = parseInt(stakeAmt);
-                    const reward = Math.floor(amt * tier.apy / 100 * tier.days / 365);
-                    return (
-                      <div style={{ padding: '10px', background: 'rgba(212,160,23,0.06)', borderRadius: '8px', marginBottom: '12px', marginTop: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '13px', color: '#888' }}>Стейкаешь:</span><span style={{ fontSize: '13px', color: '#e8e8e8' }}>{amt.toLocaleString()} $OVEN</span></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '13px', color: '#888' }}>Награда:</span><span style={{ fontSize: '14px', color: '#d4a017', fontWeight: 700 }}>+{reward.toLocaleString()} $OVEN</span></div>
-                      </div>
-                    );
-                  })()}
-                  <button className="mint-btn" onClick={doStake}>🔒 Заблокировать $OVEN</button>
-                  {stakes.filter(s => !s.claimed).length > 0 && (
+                  <input type="number" placeholder="Сумма $OVEN" value={stakeAmt} onChange={e => setStakeAmt(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #333', background: '#1a1a2e', color: '#fff', fontSize: '16px', marginBottom: '8px' }} />
+                  <button className="mint-btn" onClick={doStake} style={{ width: '100%' }}>Застейкать 🥩</button>
+                  {error && <p style={{ color: '#ff6b6b', fontSize: '13px', marginTop: '8px' }}>{error}</p>}
+
+                  {stakes.length > 0 && (
                     <div style={{ marginTop: '16px' }}>
-                      <h3 style={{ fontSize: '15px', color: '#e8e8e8', marginBottom: '10px' }}>📋 Активные стейки</h3>
-                      {stakes.filter(s => !s.claimed).map(s => {
-                        const tier = STAKE_TIERS.find(t => t.id === s.tier);
-                        const left = s.unlockTime - now;
-                        const unlocked = left <= 0;
-                        return (
-                          <div key={s.id} style={{ padding: '12px', background: 'rgba(212,160,23,0.04)', borderRadius: '10px', border: '1px solid rgba(212,160,23,0.12)', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '13px', color: '#e8e8e8' }}>{tier?.emoji} {tier?.label} &bull; {s.apy}%</span>
-                              <span style={{ fontSize: '13px', color: '#d4a017', fontWeight: 600 }}>{s.amount.toLocaleString()} $OVEN</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '12px', color: unlocked ? '#4f4' : '#888' }}>{unlocked ? '✅ Готово' : '⏳ ' + fmtTime(left)}</span>
-                              <span style={{ fontSize: '12px', color: '#d4a017' }}>+{s.reward.toLocaleString()}</span>
-                            </div>
-                            {unlocked && <button onClick={() => doClaim(s.id)} style={{ width: '100%', marginTop: '8px', padding: '8px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#4CAF50,#2E7D32)', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>💰 Забрать {s.amount + s.reward} $OVEN</button>}
+                      <p style={{ color: '#888', fontSize: '13px', marginBottom: '8px' }}>Застейкано: {totalStaked.toLocaleString()} $OVEN | Награды: {totalRewards.toLocaleString()} $OVEN</p>
+                      {stakes.map(s => (
+                        <div key={s.id} style={{ padding: '8px', background: '#1a1a2e', borderRadius: '8px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '14px' }}>{s.amount.toLocaleString()} $OVEN</span>
+                            <span style={{ color: '#888', fontSize: '12px', marginLeft: '8px' }}>{STAKE_TIERS.find(t => t.id === s.tier)?.label}</span>
+                            <span style={{ color: '#d4a017', fontSize: '12px', marginLeft: '8px' }}>+{s.reward.toLocaleString()}</span>
                           </div>
-                        );
-                      })}
+                          <div>
+                            {s.claimed ? <span style={{ color: '#888', fontSize: '12px' }}>✅ Выведено</span> :
+                              now >= s.unlockTime ? <button onClick={() => doClaim(s.id)} style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: '#d4a017', color: '#000', fontSize: '12px', cursor: 'pointer' }}>Забрать</button> :
+                              <span style={{ color: '#888', fontSize: '12px' }}>⏳ {fmtTime(s.unlockTime - now)}</span>
+                            }
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
-            <div className="card">
-              <h2>🎯 OVEN Predictions</h2>
-              <p style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>Покупай акции исхода за $OVEN</p>
-              {error && <div style={{ padding: '10px', background: 'rgba(255,50,50,0.1)', borderRadius: '8px', border: '1px solid rgba(255,50,50,0.3)', marginBottom: '12px' }}><p style={{ fontSize: '13px', color: '#f55' }}>⚠️ {error}</p></div>}
-              {markets.map(mk => {
-                const prices = getPrices(mk.pool);
-                const myPos = positions[mk.id] || {};
-                const t = trade[mk.id];
-                const shareNum = parseFloat(t?.amount || '0') || 0;
-                return (
-                  <div key={mk.id} style={{ marginBottom: '20px', padding: '16px', background: 'rgba(212,160,23,0.04)', borderRadius: '12px', border: '1px solid rgba(212,160,23,0.12)' }}>
-                    <p style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#e8e8e8' }}>{mk.emoji} {mk.title}</p>
-                    <div style={{ marginBottom: '12px' }}>
-                      {mk.outcomes.map((name, i) => {
-                        const pct = Math.round(prices[i] * 100);
-                        const held = myPos[i] || 0;
-                        return (
-                          <div key={i} style={{ marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '13px', color: '#e8e8e8' }}>{name}</span>
-                              <span style={{ fontSize: '13px', color: '#d4a017', fontWeight: 600 }}>{pct}¢</span>
-                            </div>
-                            <div style={{ height: '8px', background: 'rgba(212,160,23,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: pct + '%', background: 'linear-gradient(90deg,#d4a017,#8b6914)', borderRadius: '4px', transition: 'width 0.3s' }} />
-                            </div>
-                            {held > 0 && <p style={{ fontSize: '11px', color: '#4f4', marginTop: '2px' }}>У вас: {held} акций</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                      {mk.outcomes.map((name, i) => (
-                        <button key={i} onClick={() => setTrade(p => ({ ...p, [mk.id]: { outcome: i, amount: p[mk.id]?.amount || '' } }))} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: t?.outcome === i ? '2px solid #d4a017' : '1px solid rgba(212,160,23,0.25)', background: t?.outcome === i ? 'rgba(212,160,23,0.15)' : 'rgba(212,160,23,0.04)', color: '#e8e8e8', fontSize: '13px', cursor: 'pointer' }}>«{name}»</button>
-                      ))}
-                    </div>
-                    {t && t.outcome !== undefined && (
-                      <div style={{ padding: '10px', background: 'rgba(212,160,23,0.06)', borderRadius: '8px' }}>
-                        <input type="number" placeholder="Кол-во акций" value={t.amount} onChange={e => setTrade(p => ({ ...p, [mk.id]: { ...p[mk.id], amount: e.target.value } }))} min="0" step="any" className="input" />
-                        {shareNum > 0 && (
-                          <div style={{ marginBottom: '10px', padding: '8px', background: 'rgba(212,160,23,0.08)', borderRadius: '6px', marginTop: '8px' }}>
-                            <p style={{ fontSize: '12px', color: '#888' }}>Стоимость: <span style={{ color: '#e8e8e8' }}>{(prices[t.outcome] * shareNum * 1.02).toFixed(2)} $OVEN</span></p>
-                            <p style={{ fontSize: '12px', color: '#888' }}>Выигрыш: <span style={{ color: '#d4a017', fontWeight: 700 }}>{shareNum.toLocaleString()} $OVEN</span></p>
-                          </div>
-                        )}
-                        <button onClick={() => buyShares(mk.id, t.outcome, shareNum)} disabled={shareNum <= 0} className="mint-btn" style={{ fontSize: '13px', padding: '8px' }}>Купить</button>
-                      </div>
-                    )}
-                    <button onClick={() => setHint(p => ({ ...p, [mk.id]: !p[mk.id] }))} style={{ background: 'none', border: 'none', color: '#d4a017', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '8px' }}>
-                      {hint[mk.id] ? '🔮 Скрыть' : '🔮 Подсказка'}
-                    </button>
-                    {hint[mk.id] && <p style={{ fontSize: '13px', color: '#aaa', marginTop: '6px', fontStyle: 'italic' }}>{mk.hint}</p>}
-                  </div>
-                );
-              })}
+            <div className="card" style={{ textAlign: 'center' }}>
+              <button onClick={disconnect} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #333', background: 'transparent', color: '#888', cursor: 'pointer' }}>Отключить 👋</button>
+              <p style={{ marginTop: '8px', fontSize: '12px', color: '#555' }}>{friendlyAddress}</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#555' }}>Contracts: <a href={'https://testnet.tonscan.org/address/' + CONTRACTS.ovenJettonMinter} target="_blank" rel="noreferrer" style={{ color: '#d4a017' }}>Jetton</a></p>
             </div>
-
-            <button onClick={disconnect} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,50,50,0.3)', background: 'rgba(255,50,50,0.05)', color: '#f88', fontSize: '14px', cursor: 'pointer' }}>🔌 Отключить</button>
           </>
         )}
       </main>
-
-      <footer className="footer">
-        <p>🔥 $OVEN AI Horoscope &bull; Built on TON &bull; Powered by Mira</p>
-        <p style={{ marginTop: '4px' }}>Contracts: <a href={'https://testnet.tonscan.org/address/' + CONTRACTS.ovenJettonMinter} target="_blank" rel="noreferrer" style={{ color: '#d4a017' }}>Jetton</a> &bull; <a href={'https://testnet.tonscan.org/address/' + CONTRACTS.marketFactory} target="_blank" rel="noreferrer" style={{ color: '#d4a017' }}>Factory</a></p>
-      </footer>
     </div>
   );
 }

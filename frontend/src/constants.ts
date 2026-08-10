@@ -1,6 +1,5 @@
 export const CONTRACTS = {
-  ovenJettonMinter: 'UQBiKpoXqUP6H304AXpUgkwca-ZjnQjTJCVwu17qEymt1L3f',
-  marketFactory: 'UQAYeu2BTMwqI5y83qgj-HGu1I2WdPnNaQfeoLRbO7p5h1Dz',
+  ovenJettonMinter: 'UQBBFxXTH08XO8ZeVj5Rs3TFgIast-lPN32iv1o4y7__ewIL',
   pythOracle: 'EQB4ZnrI5qsP_IUJgVJNwEGKLzZWsQOFhiaqDbD7pTt_f9oU',
   adminWallet: 'UQBZK61wriCZgHljAXodzp_hPX8OUSmQVJVnEQXGlTF598dJ',
 } as const;
