@@ -1,14 +1,11 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import { useTonConnect } from './hooks/useTonConnect';
 import { useContract } from './hooks/useContract';
 import { ZODIACS, STAKE_TIERS, SWAP_RATE, STONFI_URL, CONTRACTS } from './constants';
 import './App.css';
 
 const MANIFEST_URL = 'https://oven-ai-horoscope-six.vercel.app/tonconnect-manifest.json';
-
-const TonConnectUIProvider = lazy(() => 
-  import('@tonconnect/ui-react').then(m => ({ default: m.TonConnectUIProvider }))
-);
 
 const FALLBACK_HORO: Record<string, string> = {
   aries: '♈ Овен: День перемен. Риски оправдаются, если действуешь решительно!',
@@ -212,10 +209,8 @@ function AppInner() {
 
 export default function App() {
   return (
-    <Suspense fallback={<div style={{padding:24,textAlign:'center',background:'#0d0d12',minHeight:'100vh',color:'#fff'}}><p style={{fontSize:48}}>♈</p><p style={{color:'#888'}}>Загрузка $OVEN...</p></div>}>
-      <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
-        <AppInner />
-      </TonConnectUIProvider>
-    </Suspense>
+    <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
+      <AppInner />
+    </TonConnectUIProvider>
   );
 }
