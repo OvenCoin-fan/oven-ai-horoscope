@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ZODIACS, STAKE_TIERS, SWAP_RATE, STONFI_URL, CONTRACTS } from './constants';
+import { useContract } from './hooks/useContract';
 import './App.css';
 
 const MANIFEST_URL = 'https://oven-ai-horoscope-six.vercel.app/tonconnect-manifest.json';
@@ -31,11 +32,15 @@ function fmtTime(ms: number) {
 export default function App() {
   const [tonUI, setTonUI] = useState<any>(null);
   const [connected, setConnected] = useState(false);
+  const [rawAddress, setRawAddress] = useState('');
   const [friendlyAddress, setFriendlyAddress] = useState('');
   const [walletError, setWalletError] = useState('');
   const [connecting, setConnecting] = useState(false);
 
+  const { getOvenSupply, getTonBalance, getOvenBalance } = useContract();
+
   const [ovenBal, setOvenBal] = useState(0);
+  const [tonBal, setTonBal] = useState(0);
   const [selSign, setSelSign] = useState<string | null>(null);
   const [horoText, setHoroText] = useState('');
   const [horoLoading, setHoroLoading] = useState(false);
@@ -53,6 +58,15 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
+  // Read real balances when wallet connects
+  useEffect(() => {
+    if (connected && rawAddress) {
+      getOvenSupply().then(s => s && setSupply(s.toString()));
+      getTonBalance(rawAddress).then(b => setTonBal(Math.round(b * 1000) / 1000));
+      getOvenBalance(rawAddress).then(b => setOvenBal(Math.round(b * 100) / 100));
+    }
+  }, [connected, rawAddress]);
+
   const connect = useCallback(async () => {
     setConnecting(true);
     setWalletError('');
@@ -63,10 +77,11 @@ export default function App() {
         ui.onStatusChange(wallet => {
           if (wallet) {
             setConnected(true);
-            setFriendlyAddress(wallet.account.address);
-            setOvenBal(10000);
+            setRawAddress(wallet.account.address);
+            setFriendlyAddress(wallet.account.address.slice(0, 8) + '...' + wallet.account.address.slice(-6));
           } else {
             setConnected(false);
+            setRawAddress('');
             setFriendlyAddress('');
           }
         });
@@ -87,7 +102,10 @@ export default function App() {
       try { await tonUI.disconnect(); } catch {}
     }
     setConnected(false);
+    setRawAddress('');
     setFriendlyAddress('');
+    setOvenBal(0);
+    setTonBal(0);
   }, [tonUI]);
 
   const getHoro = useCallback(async (sign: string) => {
@@ -106,21 +124,21 @@ export default function App() {
   const openStonFi = () => window.open(STONFI_URL, '_blank');
 
   const doStake = () => {
-    const amt = parseInt(stakeAmt);
+    const amt = parseFloat(stakeAmt);
     if (!amt || amt <= 0) { setError('Укажи сумму $OVEN'); return; }
     if (amt > ovenBal) { setError('Недостаточно $OVEN!'); return; }
     const tier = STAKE_TIERS.find(t => t.id === selTier);
     if (!tier) return;
     setError('');
-    setOvenBal(prev => prev - amt);
-    setStakes(prev => [...prev, { id: Date.now(), amount: amt, tier: tier.id, apy: tier.apy, days: tier.days, startTime: Date.now(), unlockTime: Date.now() + tier.days * 86400000, reward: Math.floor(amt * tier.apy / 100 * tier.days / 365), claimed: false }]);
+    setOvenBal(prev => Math.round((prev - amt) * 100) / 100);
+    setStakes(prev => [...prev, { id: Date.now(), amount: amt, tier: tier.id, apy: tier.apy, days: tier.days, startTime: Date.now(), unlockTime: Date.now() + tier.days * 86400000, reward: Math.floor(amt * tier.apy / 100 * tier.days / 365 * 100) / 100, claimed: false }]);
     setStakeAmt('');
   };
 
   const doClaim = (stakeId: number) => {
     const s = stakes.find(x => x.id === stakeId);
     if (!s || s.claimed || now < s.unlockTime) return;
-    setOvenBal(prev => prev + s.amount + s.reward);
+    setOvenBal(prev => Math.round((prev + s.amount + s.reward) * 100) / 100);
     setStakes(prev => prev.map(x => x.id === stakeId ? { ...x, claimed: true } : x));
   };
 
@@ -168,7 +186,7 @@ export default function App() {
             <div className="card">
               <div className="balance-bar" style={{ marginBottom: '0' }}>
                 <div><span className="label">🔥 $OVEN</span><span className="amount" style={{ marginLeft: '8px' }}>{ovenBal.toLocaleString()}</span></div>
-                <div><span className="label">🪙 TON</span><span className="amount" style={{ marginLeft: '8px' }}>5.00</span></div>
+                <div><span className="label">🪙 TON</span><span className="amount" style={{ marginLeft: '8px' }}>{tonBal.toLocaleString()}</span></div>
               </div>
               <p style={{ marginTop: '4px' }}>📦 Supply: {Number(supply).toLocaleString()} $OVEN</p>
             </div>
